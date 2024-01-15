@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "src/apps/uactor",
+    "src/apps/actix-mpv",
+    "src/apps/tokio_play",
+    "src/apps/toactor_play",
+]
+
+[workspace.dependencies]
+tokio = { version = "1.35.0", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+#axum = {version = "0.6.18", features = ["headers"]}
+
+# errors
+thiserror = "1.0"
+anyhow = { version = "1.0", features = ["backtrace"] }
+
+# json
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+
+strum = { version = "0.25", features = ["derive"] }
+strum_macros = "0.25"
+
+derive_more = "0.99"

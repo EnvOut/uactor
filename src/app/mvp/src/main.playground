@@ -1,0 +1,119 @@
+use std::{collections::HashMap, sync::Arc};
+use self::supervisors::{Subscriber};
+
+pub struct MessageDispatcher {
+    pub subscribers: Arc<dyn Subscriber>,
+}
+
+pub mod supervisors {
+    use std::sync::Arc;
+    use crate::objects::ObjectErrors;
+    use crate::messages::AbstractMessage;
+
+    pub struct Supervisor {
+        pub children: Vec<Box<dyn Subscriber>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Subscriber for Supervisor {
+        async fn send_message(&self, message: Arc<dyn AbstractMessage>) -> Result<(), ObjectErrors> {
+            let mut calls = Vec::with_capacity(self.children.len());
+            for child in self.children.iter() {
+                calls.push(child.send_message(message.clone()));
+            }
+
+            futures::future::join_all(calls).await.into_iter().collect::<Result<Vec<()>, ObjectErrors>>()?;
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    pub trait Subscriber: Send + Sync {
+        type Message: AbstractMessage;
+        async fn send_message(&self, message: Self::Message) -> Result<(), ObjectErrors>;
+    }
+}
+
+pub mod messages {
+    #[async_trait::async_trait]
+    pub trait AbstractMessage: Send + Sync {
+        async fn get_content(&self);
+    }
+
+    #[async_trait::async_trait]
+    impl AbstractMessage for String {
+        async fn get_content(&self) {
+            todo!()
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct ComplexMessage {
+        pub content: String,
+        pub items: Vec<i32>,
+    }
+
+    #[async_trait::async_trait]
+    impl AbstractMessage for ComplexMessage {
+        async fn get_content(&self) {
+            todo!()
+        }
+    }
+}
+
+pub mod objects {
+    use std::sync::Arc;
+
+    use crate::messages::{ComplexMessage, AbstractMessage};
+    use crate::supervisors::Subscriber;
+
+    #[derive(Debug)]
+    pub enum ObjectErrors {
+        InvalidMessage
+    }
+
+    pub struct Object1 {}
+
+    pub struct Object2 {}
+
+    #[async_trait::async_trait]
+    impl Subscriber for Object1 {
+        type Message = String;
+        async fn send_message(&self, message: Self::Message) -> Result<(), ObjectErrors> {
+            let value = message.trim().parse::<i32>().map_err(|_| ObjectErrors::InvalidMessage)?;
+            // self.service.do_something(value).await;
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Subscriber for Object2 {
+        type Message = ComplexMessage;
+
+        async fn send_message(&self, message: Self::Message) -> Result<(), ObjectErrors> {
+            let ComplexMessage { content, items } = message;
+            // self.service.do_something_else(content, items).await;
+            Ok(())
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let mut map: HashMap<String, Box<dyn Fn() -> Box<dyn Subscriber>>> = HashMap::new();
+    map.insert("Object1".to_string(), Box::new(|| Box::new(objects::Object1 {})));
+    map.insert("Object2".to_string(), Box::new(|| Box::new(objects::Object2 {})));
+
+    let mut children = Vec::new();
+    for (name, factory) in map.iter() {
+        children.push(factory());
+    }
+
+    let supervisor = supervisors::Supervisor {
+        children,
+    };
+
+    let message = Arc::new(String::from("Hello world"));
+    let result = supervisor.send_message(message).await;
+    println!("{:?}", result);
+}

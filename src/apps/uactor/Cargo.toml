@@ -1,0 +1,22 @@
+[package]
+name = "uactor"
+version = "0.1.1"
+edition = "2021"
+repository = "https://github.com/EnvOut/uactor"
+license = "MIT"
+license-file = "../../../LICENSE"
+readme = "../../../README.md"
+keywords = ["actor", "actor-system", "stream", "actor-stream", "spawn-process"]
+workspace = "../../../"
+description = "The fastest and most modular actor system that doesn’t force you to pay for what you don’t need"
+
+[dependencies]
+tokio = { workspace = true }
+async-trait = { workspace = true }
+tracing = "0.1"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3.18" }
+
+[[example]]
+name = "base_sample"

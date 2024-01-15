@@ -1,0 +1,23 @@
+[package]
+name = "mvp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+actix-web = "4.1"
+
+ractor = "0.8.4"
+ractor_cluster = "0.8.4"
+ractor_cluster_derive = "0.8.4"
