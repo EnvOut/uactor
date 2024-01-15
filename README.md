@@ -8,7 +8,7 @@ Examples can be found [here](src/apps/uactor/examples).
 ### Features
 1. Simplified creation of a tokio actor topic oriented actor
 2. Minimum boilerplate code
-3. [ ] Support different tokio channels including `watch`, `broadcast`, `oneshot`
+3. Support different tokio channels including `watch`, `broadcast`, `oneshot`, `mpsc`.
 4. [ ] Include `tick` (scheduler) inside ActorSelect
 
 ### Other projects:

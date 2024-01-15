@@ -1,14 +1,8 @@
+use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
-use crate::select::ActorSelect;
+use crate::select::{ActorSelect};
 
-pub trait ActorContext: Default + Sized + Unpin + 'static {
-// pub trait ActorContext: Sized {
-
-}
-
-pub struct Addr<A: Actor> {
-    tx: A,
-}
+pub trait ActorContext: Default + Sized + Unpin + 'static { }
 
 pub struct Context<A>
     where
@@ -16,6 +10,7 @@ pub struct Context<A>
 {
     // parts: ContextParts<A>,
     // mb: Option<Mailbox<A>>,
+    #[allow(dead_code)]
     ll: Option<A>,
 }
 
@@ -58,24 +53,37 @@ pub trait Actor: Sized + Unpin + 'static {
 }
 
 pub mod select {
-    use crate::{Actor, Handler, Message, SelectResult};
+    use std::future::pending;
+    use tokio::sync::mpsc;
+    use crate::{Actor, DataSource, Handler, Message, SelectResult};
 
     #[async_trait::async_trait]
     pub trait ActorSelect<Z: Actor> {
         async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult;
     }
 
-    pub type MpscReceiver<T> = tokio::sync::mpsc::Receiver<T>;
+    pub type MpscReceiver<T> = mpsc::Receiver<T>;
 
     #[async_trait::async_trait]
-    impl <Z, A> ActorSelect<Z> for MpscReceiver<A>
-        where Z: Handler<A> + Send,
-              A: Message + Send,
+    impl <Z: Actor> ActorSelect<Z> for (){
+        async fn select(&mut self, _: &mut Z::Context, _: &mut Z) -> SelectResult {
+            let never = pending::<()>();
+            never.await;
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl<Z, S1> ActorSelect<Z> for S1
+        where
+            S1::Item: Message + Send,
+            S1: DataSource + Send,
+            Z: Handler<S1::Item> + Send,
     {
         async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
             tokio::select! {
-                Some(msg) = self.recv() => {
-                    actor.handle(msg, ctx).await?;
+                Ok(msg) = self.next() => {
+                    let _ = actor.handle(msg, ctx).await;
                 }
             }
             Ok(())
@@ -83,17 +91,19 @@ pub mod select {
     }
 
     #[async_trait::async_trait]
-    impl <Z, A, B> ActorSelect<Z> for (MpscReceiver<A>, MpscReceiver<B>)
-        where Z: Handler<A> + Handler<B> + Send,
-              A: Message + Send, B: Message + Send,
+    impl<Z, S1, S2> ActorSelect<Z> for (S1, S2)
+        where
+            S1::Item: Message + Send, S2::Item: Message + Send,
+            S1: DataSource + Send, S2: DataSource + Send,
+            Z: Handler<S1::Item> + Handler<S2::Item> + Send,
     {
         async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
             tokio::select! {
-                Some(msg) = self.0.recv() => {
-                    actor.handle(msg, ctx).await?;
+                Ok(msg) = self.0.next() => {
+                    let _ = actor.handle(msg, ctx).await;
                 }
-                Some(msg) = self.1.recv() => {
-                    actor.handle(msg, ctx).await?;
+                Ok(msg) = self.1.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
                 }
             }
             Ok(())
@@ -101,20 +111,77 @@ pub mod select {
     }
 
     #[async_trait::async_trait]
-    impl <Z, A, B, C> ActorSelect<Z> for (MpscReceiver<A>, MpscReceiver<B>, MpscReceiver<C>)
-        where Z: Handler<A> + Handler<B> + Handler<C> + Send,
-              A: Message + Send, B: Message + Send, C: Message + Send,
+    impl<Z, S1, S2, S3> ActorSelect<Z> for (S1, S2, S3)
+        where
+            S1::Item: Message + Send, S2::Item: Message + Send, S3::Item: Message + Send + Send,
+            S1: DataSource + Send, S2: DataSource + Send, S3: DataSource + Send,
+            Z: Handler<S1::Item> + Handler<S2::Item> + Handler<S3::Item> + Send,
     {
         async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
             tokio::select! {
-                Some(msg) = self.0.recv() => {
-                    actor.handle(msg, ctx).await?;
+                Ok(msg) = self.0.next() => {
+                    let _ = actor.handle(msg, ctx).await;
                 }
-                Some(msg) = self.1.recv() => {
-                    actor.handle(msg, ctx).await?;
+                Ok(msg) = self.1.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
                 }
-                Some(msg) = self.2.recv() => {
-                    actor.handle(msg, ctx).await?;
+                Ok(msg) = self.2.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl<Z, S1, S2, S3, S4> ActorSelect<Z> for (S1, S2, S3, S4)
+        where
+            S1::Item: Message + Send, S2::Item: Message + Send, S3::Item: Message + Send, S4::Item: Message + Send,
+            S1: DataSource + Send, S2: DataSource + Send, S3: DataSource + Send, S4: DataSource + Send,
+            Z: Handler<S1::Item> + Handler<S2::Item> + Handler<S3::Item> + Handler<S4::Item> + Send,
+    {
+        async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
+            tokio::select! {
+                Ok(msg) = self.0.next() => {
+                    let _ = actor.handle(msg, ctx).await;
+                }
+                Ok(msg) = self.1.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
+                }
+                Ok(msg) = self.2.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
+                }
+                Ok(msg) = self.3.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl<Z, S1, S2, S3, S4, S5> ActorSelect<Z> for (S1, S2, S3, S4, S5)
+        where
+            S1::Item: Message + Send, S2::Item: Message + Send, S3::Item: Message + Send, S4::Item: Message + Send, S5::Item: Message + Send,
+            S1: DataSource + Send, S2: DataSource + Send, S3: DataSource + Send, S4: DataSource + Send, S5: DataSource + Send,
+            Z: Handler<S1::Item> + Handler<S2::Item> + Handler<S3::Item> + Handler<S4::Item> + Handler<S5::Item> + Send,
+    {
+        async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
+            tokio::select! {
+                Ok(msg) = self.0.next() => {
+                    let _ = actor.handle(msg, ctx).await;
+                }
+                Ok(msg) = self.1.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
+                }
+                Ok(msg) = self.2.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
+                }
+                Ok(msg) = self.3.next() => {
+                    let _ = actor.handle(msg, ctx).await?;
+                }
+                Ok(msg) = self.4.next() => {
+                   let _ = actor.handle(msg, ctx).await?;
                 }
             }
             Ok(())
@@ -122,7 +189,93 @@ pub mod select {
     }
 }
 
+pub type DataSourceResult<T> = Result<T, DataSourceErrors>;
+
+#[derive(thiserror::Error, Debug)]
+pub enum DataSourceErrors {
+    #[error("Channel closed")]
+    ChannelClosed,
+
+    #[error("Channel lagged by {0}")]
+    ChannelLagged(u64)
+}
+
+impl From<broadcast::error::RecvError> for DataSourceErrors {
+    fn from(err: broadcast::error::RecvError) -> Self {
+        use broadcast::error::RecvError;
+
+        match err {
+            RecvError::Closed => {Self::ChannelClosed}
+            RecvError::Lagged(number_skipped_messages) => {Self::ChannelLagged(number_skipped_messages)}
+        }
+    }
+}
+
+#[async_trait::async_trait]
+pub trait DataSource {
+    type Item;
+    async fn next(&mut self) -> DataSourceResult<Self::Item>;
+}
+
+#[async_trait::async_trait]
+impl<T> DataSource for mpsc::Receiver<T> where T: Send {
+    type Item = T;
+
+    async fn next(&mut self) -> DataSourceResult<Self::Item> {
+        if let Some(value) = self.recv().await {
+            Ok(value)
+        } else {
+            Err(DataSourceErrors::ChannelClosed)
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> DataSource for mpsc::UnboundedReceiver<T> where T: Send {
+    type Item = T;
+
+    async fn next(&mut self) -> DataSourceResult<Self::Item> {
+        if let Some(value) = self.recv().await {
+            Ok(value)
+        } else {
+            Err(DataSourceErrors::ChannelClosed)
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> DataSource for watch::Receiver<T> where T: Clone + Send + Sync {
+    type Item = T;
+
+    async fn next(&mut self) -> DataSourceResult<Self::Item> {
+        let _ = self.changed().await.map_err(|_| DataSourceErrors::ChannelClosed)?;
+        let value = self.borrow().clone();
+        Ok(value)
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> DataSource for broadcast::Receiver<T>  where T: Clone + Send + Sync {
+    type Item = T;
+
+    async fn next(&mut self) -> DataSourceResult<Self::Item> {
+        self.recv().await.map_err(|err| DataSourceErrors::from(err))
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> DataSource for oneshot::Receiver<T> where T: Send {
+    type Item = T;
+
+    async fn next(&mut self) -> DataSourceResult<Self::Item> {
+        self.await.map_err(|_| DataSourceErrors::ChannelClosed)
+    }
+}
+
 pub trait Message { }
+
+impl<A, B> Message for Result<A, B> where A: Message, B: Message {}
+
 
 #[async_trait::async_trait]
 pub trait Handler<M>
