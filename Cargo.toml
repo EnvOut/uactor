@@ -1,10 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-    "src/apps/uactor",
-    "src/apps/actix-mpv",
-    "src/apps/tokio_play",
-    "src/apps/toactor_play",
+    "src/uactor",
+    "experiments/actix-mpv",
+    "experiments/tokio_play",
+    "experiments/toactor_play",
 ]
 
 [workspace.dependencies]

@@ -1,8 +1,11 @@
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
+use futures::StreamExt;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::watch;
+use tokio_stream::wrappers::WatchStream;
 
 async fn local() {
     let nonsend_data = Rc::new("world");
@@ -105,28 +108,44 @@ trait Message {}
 
 #[tokio::main]
 async fn main() {
-    use futures::FutureExt;
-    use futures::future::select_all;
-    use tokio::sync::mpsc;
+    // use futures::FutureExt;
+    // use futures::future::select_all;
+    // use tokio::sync::mpsc;
+    //
+    // // Предположим, что Message и Receiver уже определены
+    // let receivers: Vec<mpsc::Receiver<String>> = vec![/* ... */];
+    //
+    // let mut futures = Vec::new();
+    // for mut receiver in receivers {
+    //     let future = Box::pin(async move {
+    //         let option = receiver.recv().await;
+    //         option
+    //     });
+    //     futures.push(future);
+    // }
+    //
+    // while !futures.is_empty() {
+    //     let (result, index, remaining) = select_all(futures).await;
+    //     futures = remaining;
+    //
+    //     if let Some(msg) = result {
+    //         println!("msg: {msg}");
+    //     }
+    // }
 
-    // Предположим, что Message и Receiver уже определены
-    let receivers: Vec<mpsc::Receiver<String>> = vec![/* ... */];
+    let (tx, rx1) = watch::channel::<i32>(100500);
+    // WatchStream::new()
+    let mut stream1 = tokio_stream::wrappers::WatchStream::new(rx1.clone());
+    let mut stream2 = tokio_stream::wrappers::WatchStream::new(rx1);
+    let value = stream1.next().await.unwrap();
+    println!("value 1: {value:?}");
+    let value = stream2.next().await.unwrap();
+    println!("value 2: {value:?}");
 
-    let mut futures = Vec::new();
-    for mut receiver in receivers {
-        let future = Box::pin(async move {
-            let option = receiver.recv().await;
-            option
-        });
-        futures.push(future);
-    }
 
-    while !futures.is_empty() {
-        let (result, index, remaining) = select_all(futures).await;
-        futures = remaining;
+    let (_, rx2) = watch::channel::<i32>(100500);
+    // WatchStream::new()
+    let mut stream1 = tokio_stream::wrappers::WatchStream::new(rx2);
 
-        if let Some(msg) = result {
-            println!("msg: {msg}");
-        }
-    }
+    // WatchStream::from(&)
 }

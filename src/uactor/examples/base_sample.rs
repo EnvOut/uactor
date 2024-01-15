@@ -46,13 +46,6 @@ pub mod actor1 {
     #[async_trait::async_trait]
     impl Handler<PingPongMsg> for Actor1 {
         async fn handle(&mut self, msg: PingPongMsg, ctx: &mut Self::Context) -> HandleResult {
-            // match  {
-            //     Message(message) =>message
-            //     Reply(message, serder) => {
-            //         ...ctx
-            //         serder.send(result)
-            //     }
-            // }
             println!("actor1 handle PingPongMsg: {msg:?}");
             Ok(())
         }

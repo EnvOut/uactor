@@ -3,7 +3,7 @@
 The fastest and most modular actor system that doesn’t force you to pay for what you don’t need
 
 ## Examples
-Examples can be found [here](src/apps/uactor/examples).
+Examples can be found [here](src/uactor/examples).
 
 ### Features
 1. Simplified creation of a tokio actor topic oriented actor

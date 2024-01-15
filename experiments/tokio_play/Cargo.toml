@@ -9,3 +9,4 @@ edition = "2021"
 tokio = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
+tokio-stream = { version = "0.1", features = ["sync"] }
