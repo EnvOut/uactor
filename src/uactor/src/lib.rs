@@ -47,9 +47,6 @@ pub trait Actor: Sized + Unpin + 'static {
         let ctx: Self::Context = Default::default();
         ctx
     }
-
-
-    // async fn select(&mut self, ctx: &mut Self::Context) -> Box<dyn select::ActorSelect<Self>>;
 }
 
 pub mod select {
@@ -120,7 +117,7 @@ pub mod select {
         async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
             tokio::select! {
                 Ok(msg) = self.0.next() => {
-                    let _ = actor.handle(msg, ctx).await;
+                    let _ = actor.handle(msg, ctx).await?;
                 }
                 Ok(msg) = self.1.next() => {
                     let _ = actor.handle(msg, ctx).await?;
@@ -143,7 +140,7 @@ pub mod select {
         async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
             tokio::select! {
                 Ok(msg) = self.0.next() => {
-                    let _ = actor.handle(msg, ctx).await;
+                    let _ = actor.handle(msg, ctx).await?;
                 }
                 Ok(msg) = self.1.next() => {
                     let _ = actor.handle(msg, ctx).await?;
@@ -169,7 +166,7 @@ pub mod select {
         async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult {
             tokio::select! {
                 Ok(msg) = self.0.next() => {
-                    let _ = actor.handle(msg, ctx).await;
+                    let _ = actor.handle(msg, ctx).await?;
                 }
                 Ok(msg) = self.1.next() => {
                     let _ = actor.handle(msg, ctx).await?;
