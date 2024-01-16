@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.1.2"
+version = "0.2.1"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -16,7 +16,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-tracing-subscriber = { version = "0.3.18" }
+tracing-subscriber = { version = "0.3" }
 
 [[example]]
 name = "base_sample"
