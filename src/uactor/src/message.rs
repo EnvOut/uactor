@@ -14,40 +14,11 @@ impl<A> Message for Mutex<A> where A: Message {}
 
 impl<A> Message for RwLock<A> where A: Message {}
 
-impl Message for i64 {}
+macro_rules! message_impl {
+    ($($T: ident),*) => {
+        $(impl Message for $T {})*
+    };
+}
 
-impl Message for i32 {}
+message_impl! { i64, i32, i16, i8, u64, u32, u16, u8, f64, f32, String, NonZeroI64, NonZeroI32, NonZeroI16, NonZeroI8, NonZeroU64, NonZeroU32, NonZeroU16, NonZeroU8 }
 
-impl Message for i16 {}
-
-impl Message for i8 {}
-
-impl Message for u64 {}
-
-impl Message for u32 {}
-
-impl Message for u16 {}
-
-impl Message for u8 {}
-
-impl Message for f64 {}
-
-impl Message for f32 {}
-
-impl Message for String {}
-
-impl Message for NonZeroI64 {}
-
-impl Message for NonZeroI32 {}
-
-impl Message for NonZeroI16 {}
-
-impl Message for NonZeroI8 {}
-
-impl Message for NonZeroU64 {}
-
-impl Message for NonZeroU32 {}
-
-impl Message for NonZeroU16 {}
-
-impl Message for NonZeroU8 {}

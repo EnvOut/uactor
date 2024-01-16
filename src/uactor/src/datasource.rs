@@ -1,5 +1,4 @@
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
-use tokio::sync::broadcast::error::RecvError;
 
 pub type DataSourceResult<T> = Result<T, DataSourceErrors>;
 

@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(unused_mut)]
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;

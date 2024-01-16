@@ -9,7 +9,8 @@ Examples can be found [here](src/uactor/examples).
 1. Simplified creation of a tokio actor topic oriented actor
 2. Minimum boilerplate code
 3. Support different tokio channels including `watch`, `broadcast`, `oneshot`, `mpsc`.
-4. [ ] Include `tick` (scheduler) inside ActorSelect
+4. Each actor is able to listen up to 30 channels.
+5. [ ] Include `tick` (scheduler) inside ActorSelect
 
 ### Other projects:
 1. Actix

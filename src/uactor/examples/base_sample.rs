@@ -1,16 +1,15 @@
-use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use uactor::{Actor, Handler, Message, System};
 use uactor::select::ActorSelect;
+use uactor::system::System;
 use crate::actor1::Actor1;
 use crate::actor2::Actor2;
 use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
 pub mod messages {
-    use uactor::Message;
+    use uactor::message::Message;
 
     #[derive(Debug)]
     pub enum PingPongMsg {
@@ -34,7 +33,8 @@ pub mod messages {
 }
 
 pub mod actor1 {
-    use uactor::{Actor, Context, Handler, HandleResult};
+    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::context::Context;
     use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
     pub struct Actor1 {
@@ -62,7 +62,8 @@ pub mod actor1 {
 }
 
 pub mod actor2 {
-    use uactor::{Actor, Context, Handler, HandleResult};
+    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::context::Context;
     use crate::messages::RespMsg;
 
     pub struct Actor2;

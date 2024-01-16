@@ -13,7 +13,7 @@ description = "The fastest and most modular actor system that doesn’t force yo
 tokio = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
-tracing = "0.1"
+tracing = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.18" }
