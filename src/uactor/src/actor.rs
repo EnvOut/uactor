@@ -45,8 +45,15 @@ macro_rules! spawn_with_ref {
         }
 
         paste::paste! {
-            pub struct [<$ActorType Ref>]<T>(T) where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName>;
-            impl<T> [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName> {
+            pub struct [<$ActorType Ref>]<T>(T) where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName> + Clone;
+
+            impl<T> uactor::data_publisher::TryClone for [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName> + Clone {
+                fn try_clone(&self) -> Result<Self, uactor::data_publisher::TryCloneError> {
+                    self.0.try_clone().map(|publisher| Actor1Ref(publisher))
+                }
+            }
+
+            impl<T> [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName> + Clone {
                 $(
                 pub async fn [<send_ $Message:snake>](&mut self, msg: $Message) -> uactor::data_publisher::DataPublisherResult {
                     self.0.publish($ActorMessageName::$Message(msg)).await

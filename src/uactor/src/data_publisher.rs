@@ -1,7 +1,8 @@
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::mpsc::{Sender, UnboundedSender};
 
 #[async_trait::async_trait]
-pub trait DataPublisher {
+pub trait DataPublisher: TryClone {
     type Item;
     async fn publish(&mut self, data: Self::Item) -> DataPublisherResult;
 }
@@ -10,6 +11,22 @@ pub trait DataPublisher {
 pub enum DataPublisherErrors {
     #[error("Channel closed")]
     Closed
+}
+
+pub trait TryClone: Sized {
+    fn try_clone(&self) -> Result<Self, TryCloneError>;
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum TryCloneError {
+    #[error("Can't be cloned")]
+    CantClone
+}
+
+impl Clone for TryCloneError {
+    fn clone(&self) -> Self {
+        todo!()
+    }
 }
 
 impl<T> From<mpsc::error::SendError<T>> for DataPublisherErrors {
@@ -33,6 +50,14 @@ impl<T> DataPublisher for mpsc::Sender<T> where T: Send {
     async fn publish(&mut self, data: T) -> DataPublisherResult {
         self.send(data).await.map_err(|err| DataPublisherErrors::from(err))
     }
+
+
+}
+
+impl<T> TryClone for Sender<T> where T: Send {
+    fn try_clone(&self) -> Result<Self, TryCloneError> {
+        Ok(self.clone())
+    }
 }
 
 #[async_trait::async_trait]
@@ -41,5 +66,26 @@ impl<T> DataPublisher for mpsc::UnboundedSender<T> where T: Send {
 
     async fn publish(&mut self, data: T) -> DataPublisherResult {
         self.send(data).map_err(|err| DataPublisherErrors::from(err))
+    }
+}
+
+impl<T> TryClone for UnboundedSender<T> where T: Send {
+    fn try_clone(&self) -> Result<Self, TryCloneError> {
+        Ok(self.clone())
+    }
+}
+
+#[async_trait::async_trait]
+impl<T> DataPublisher for watch::Sender<T> where T: Send + Sync {
+    type Item = T;
+
+    async fn publish(&mut self, data: T) -> DataPublisherResult {
+        self.send(data).map_err(|_| DataPublisherErrors::Closed)
+    }
+}
+
+impl<T> TryClone for watch::Sender<T> where T: Send {
+    fn try_clone(&self) -> Result<Self, TryCloneError> {
+        Err(TryCloneError::CantClone)
     }
 }
