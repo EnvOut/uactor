@@ -10,26 +10,26 @@ use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
 pub mod messages {
     use uactor::message::Message;
+    use uactor::message_impl;
 
     #[derive(Debug)]
     pub enum PingPongMsg {
         Ping,
         Pong,
     }
-    impl Message for PingPongMsg {}
 
     #[derive(Debug)]
     pub enum ReqMsg {
         GET
     }
-    impl Message for ReqMsg {}
 
     #[derive(Debug)]
     pub enum RespMsg {
         Ok,
         Err,
     }
-    impl Message for RespMsg {}
+
+    message_impl!(PingPongMsg, ReqMsg, RespMsg);
 }
 
 pub mod actor1 {

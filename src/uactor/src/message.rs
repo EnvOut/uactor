@@ -14,11 +14,14 @@ impl<A> Message for Mutex<A> where A: Message {}
 
 impl<A> Message for RwLock<A> where A: Message {}
 
+#[macro_export]
 macro_rules! message_impl {
     ($($T: ident),*) => {
         $(impl Message for $T {})*
     };
 }
 
-message_impl! { i64, i32, i16, i8, u64, u32, u16, u8, f64, f32, String, NonZeroI64, NonZeroI32, NonZeroI16, NonZeroI8, NonZeroU64, NonZeroU32, NonZeroU16, NonZeroU8 }
+type Empty = ();
+
+message_impl! { Empty, i64, i32, i16, i8, u64, u32, u16, u8, f64, f32, String, NonZeroI64, NonZeroI32, NonZeroI16, NonZeroI8, NonZeroU64, NonZeroU32, NonZeroU16, NonZeroU8 }
 

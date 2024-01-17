@@ -10,7 +10,8 @@ Examples can be found [here](src/uactor/examples).
 2. Minimum boilerplate code
 3. Support different tokio channels including `watch`, `broadcast`, `oneshot`, `mpsc`.
 4. Each actor is able to listen up to 30 channels.
-5. [ ] Include `tick` (scheduler) inside ActorSelect
+5. Added support of actors with single real channel and routing messages to the defined handler [example](src/uactor/examples/single_channel_actor.rs)
+6. [ ] Include `tick` (scheduler) inside ActorSelect
 
 ### Other projects:
 1. Actix
