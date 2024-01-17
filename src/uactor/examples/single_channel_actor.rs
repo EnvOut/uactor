@@ -1,7 +1,8 @@
-use uactor::actor::{Actor, HandleResult};
 use uactor::system::System;
 use crate::actor1::Actor1;
 use crate::messages::{PingMsg, PongMsg};
+use crate::actor1::Actor1Msg;
+use crate::actor1::Actor1Ref;
 
 mod messages {
     use tokio::sync::oneshot::Sender;
@@ -32,6 +33,8 @@ mod actor1 {
             Ok(())
         }
     }
+
+    uactor::generate_actor_ref!(Actor1, { PingMsg });
 }
 
 #[tokio::main]
@@ -40,7 +43,7 @@ async fn main() -> anyhow::Result<()>{
 
     let system = System::global();
 
-    let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, Actor1, actor1, Actor1Msg; PingMsg);
+    let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
 
     let pong = actor1_ref.send_and_wait_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
     println!("main: received {pong:?} message");

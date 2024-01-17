@@ -20,61 +20,82 @@ pub trait Actor: Sized + Unpin + 'static {
 
 #[macro_export]
 macro_rules! spawn_with_ref {
-    ($S: ident, $ActorType: ident, $ActorInstance: ident, $ActorMessageName: ident; $($Message: ident),*) => {{
+    ($S: ident, $ActorInstance: ident: $ActorType: ident) => {{
         // $(impl Message for $T {})*
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<$ActorMessageName>();
-        let handle = $S.run($ActorInstance, (rx)).await;
 
-        pub enum $ActorMessageName {
-            $($Message($Message)),*
+        uactor::paste! {
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
+            let handle = $S.run($ActorInstance, (rx)).await;
+
+            let actor_ref = [<$ActorType Ref>]::new(tx);
+            (actor_ref, handle)
         }
-        impl uactor::message::Message for $ActorMessageName { }
+    }};
+}
 
-        #[async_trait::async_trait]
-        impl uactor::actor::Handler<$ActorMessageName> for $ActorType {
-            async fn handle(&mut self, msg: $ActorMessageName, ctx: &mut <Self as Actor>::Context) -> HandleResult {
-                match msg {
-                    $(
-                    $ActorMessageName::$Message(m) => {
-                        self.handle(m, ctx).await?;
+#[macro_export]
+macro_rules! generate_actor_ref {
+    ($ActorType: ident, { $($Message: ident),* }) => {
+        uactor::paste! {
+            pub enum [<$ActorType Msg>] {
+                $($Message($Message)),*
+            }
+            impl uactor::message::Message for [<$ActorType Msg>] { }
+
+            #[async_trait::async_trait]
+            impl uactor::actor::Handler<[<$ActorType Msg>]> for $ActorType {
+                async fn handle(&mut self, msg: [<$ActorType Msg>], ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {
+                    match msg {
+                        $(
+                        [<$ActorType Msg>]::$Message(m) => {
+                            self.handle(m, ctx).await?;
+                        }
+                        ),*
                     }
-                    ),*
+                    Ok(())
                 }
-                Ok(())
             }
-        }
 
-        paste::paste! {
-            pub struct [<$ActorType Ref>]<T>(T) where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName> + Clone;
+            pub struct [<$ActorType Ref>]<T>(T) where T: uactor::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone;
 
-            impl<T> uactor::data_publisher::TryClone for [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName> + Clone {
+            impl<T> uactor::data_publisher::TryClone for [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
                 fn try_clone(&self) -> Result<Self, uactor::data_publisher::TryCloneError> {
-                    self.0.try_clone().map(|publisher| Actor1Ref(publisher))
+                    self.0.try_clone().map(|publisher| Self(publisher))
                 }
             }
 
-            impl<T> [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=$ActorMessageName> + Clone {
+            impl<T> [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
+                pub fn new(channel: T) -> Self {
+                    Self(channel)
+                }
+
                 $(
                 pub async fn [<send_ $Message:snake>](&mut self, msg: $Message) -> uactor::data_publisher::DataPublisherResult {
-                    self.0.publish($ActorMessageName::$Message(msg)).await
+                    self.0.publish([<$ActorType Msg>]::$Message(msg)).await
                 }
                 pub async fn [<send_and_wait_ $Message:snake>]<A>(&mut self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> $Message) -> Result<A, uactor::data_publisher::DataPublisherErrors>
                     where A: uactor::message::Message
                 {
                     let (tx, rx) = tokio::sync::oneshot::channel::<A>();
                     let message = f(tx);
-                    self.0.publish($ActorMessageName::$Message(message)).await?;
+                    self.0.publish([<$ActorType Msg>]::$Message(message)).await?;
                     rx.await.map_err(|err| uactor::data_publisher::DataPublisherErrors::from(err))
                 }
+
+                // pub async fn [<send_with_reply_ $Message:snake>]<A>(&mut self, f: impl FnOnce(uactor::data_publisher::DataPublisher<Item=A>) -> $Message) -> Result<A, uactor::data_publisher::DataPublisherErrors>
+                //     where A: uactor::message::Message
+                // {
+                //     let (tx, rx) = tokio::sync::oneshot::channel::<A>();
+                //     let message = f(tx);
+                //     self.0.publish([<$ActorType Msg>]::$Message(message)).await?;
+                //     rx.await.map_err(|err| uactor::data_publisher::DataPublisherErrors::from(err))
+                // }
                 )*
 
             }
-
-            let actor1_ref = [<$ActorType Ref>](tx);
         }
 
-        (actor1_ref, handle)
-    }};
+    };
 }
 
 #[async_trait::async_trait]
