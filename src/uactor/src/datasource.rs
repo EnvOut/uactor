@@ -1,4 +1,6 @@
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
+use tokio::time::Interval;
+use crate::message::IntervalMessage;
 
 pub type DataSourceResult<T> = Result<T, DataSourceErrors>;
 
@@ -80,5 +82,15 @@ impl<T> DataSource for oneshot::Receiver<T> where T: Send {
 
     async fn next(&mut self) -> DataSourceResult<Self::Item> {
         self.await.map_err(|_| DataSourceErrors::ChannelClosed)
+    }
+}
+
+#[async_trait::async_trait]
+impl DataSource for Interval {
+    type Item = IntervalMessage;
+
+    async fn next(&mut self) -> DataSourceResult<Self::Item> {
+        let instant = self.tick().await;
+        Ok(IntervalMessage { time: instant, duration: self.period() })
     }
 }

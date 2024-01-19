@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -19,6 +19,7 @@ paste = "1.0"
 [dev-dependencies]
 tracing-subscriber = { version = "0.3" }
 anyhow = "1"
+time = "0.3"
 
 [[example]]
 name = "base_sample"

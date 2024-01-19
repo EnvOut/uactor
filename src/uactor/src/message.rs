@@ -1,6 +1,8 @@
 use std::num::{NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
+use tokio::time::Instant;
 
 pub trait Message { }
 
@@ -23,5 +25,10 @@ macro_rules! message_impl {
 
 type Empty = ();
 
-message_impl! { Empty, i64, i32, i16, i8, u64, u32, u16, u8, f64, f32, String, NonZeroI64, NonZeroI32, NonZeroI16, NonZeroI8, NonZeroU64, NonZeroU32, NonZeroU16, NonZeroU8 }
+pub struct IntervalMessage {
+    pub time: Instant,
+    pub duration: Duration,
+}
+
+message_impl! { IntervalMessage, Empty, i64, i32, i16, i8, u64, u32, u16, u8, f64, f32, String, NonZeroI64, NonZeroI32, NonZeroI16, NonZeroI8, NonZeroU64, NonZeroU32, NonZeroU16, NonZeroU8 }
 

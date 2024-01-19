@@ -40,7 +40,7 @@ mod select_from_tuple {
     }
 
     #[async_trait::async_trait]
-    impl <A: Actor> ActorSelect<A> for (){
+    impl<A: Actor> ActorSelect<A> for () {
         async fn select(&mut self, _: &mut A::Context, _: &mut A) -> SelectResult {
             let never = pending::<()>();
             never.await;
