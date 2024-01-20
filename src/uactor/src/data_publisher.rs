@@ -4,7 +4,7 @@ use tokio::sync::mpsc::{Sender, UnboundedSender};
 #[async_trait::async_trait]
 pub trait DataPublisher: TryClone {
     type Item;
-    async fn publish(&mut self, data: Self::Item) -> DataPublisherResult;
+    async fn publish(&self, data: Self::Item) -> DataPublisherResult;
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -47,7 +47,7 @@ pub type DataPublisherResult = Result<(), DataPublisherErrors>;
 impl<T> DataPublisher for mpsc::Sender<T> where T: Send {
     type Item = T;
 
-    async fn publish(&mut self, data: T) -> DataPublisherResult {
+    async fn publish(&self, data: Self::Item) -> DataPublisherResult {
         self.send(data).await.map_err(|err| DataPublisherErrors::from(err))
     }
 
@@ -64,7 +64,7 @@ impl<T> TryClone for Sender<T> where T: Send {
 impl<T> DataPublisher for mpsc::UnboundedSender<T> where T: Send {
     type Item = T;
 
-    async fn publish(&mut self, data: T) -> DataPublisherResult {
+    async fn publish(&self, data: Self::Item) -> DataPublisherResult {
         self.send(data).map_err(|err| DataPublisherErrors::from(err))
     }
 }
@@ -79,7 +79,7 @@ impl<T> TryClone for UnboundedSender<T> where T: Send {
 impl<T> DataPublisher for watch::Sender<T> where T: Send + Sync {
     type Item = T;
 
-    async fn publish(&mut self, data: T) -> DataPublisherResult {
+    async fn publish(&self, data: Self::Item) -> DataPublisherResult {
         self.send(data).map_err(|_| DataPublisherErrors::Closed)
     }
 }
