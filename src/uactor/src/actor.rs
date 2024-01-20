@@ -41,6 +41,7 @@ macro_rules! spawn_with_ref {
     }};
 }
 
+/// let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
 #[macro_export]
 macro_rules! generate_actor_ref {
     ($ActorType: ident, { $($Message: ident),* }) => {
@@ -78,12 +79,10 @@ macro_rules! generate_actor_ref {
                 }
 
                 $(
-                pub async fn [<send_ $Message:snake>](&mut self, msg: $Message) -> uactor::data_publisher::DataPublisherResult {
+                pub async fn [<send_ $Message:snake>](&self, msg: $Message) -> uactor::data_publisher::DataPublisherResult {
                     self.0.publish([<$ActorType Msg>]::$Message(msg)).await
                 }
-                pub async fn [<send_and_wait_ $Message:snake>]<A>(&mut self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> $Message) -> Result<A, uactor::data_publisher::DataPublisherErrors>
-                    where A: uactor::message::Message
-                {
+                pub async fn [<ask_ $Message:snake>]<A>(&self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> $Message) -> Result<A, uactor::data_publisher::DataPublisherErrors> {
                     let (tx, rx) = tokio::sync::oneshot::channel::<A>();
                     let message = f(tx);
                     self.0.publish([<$ActorType Msg>]::$Message(message)).await?;

@@ -38,14 +38,14 @@ mod actor1 {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()>{
+async fn main() -> anyhow::Result<()> {
     let actor1 = Actor1;
 
     let system = System::global();
 
     let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
 
-    let pong = actor1_ref.send_and_wait_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
+    let pong = actor1_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
     println!("main: received {pong:?} message");
 
     Ok(())

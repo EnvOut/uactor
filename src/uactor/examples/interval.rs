@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()>{
 
     let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1, interval);
 
-    let pong = actor1_ref.send_and_wait_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
+    let pong = actor1_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
     println!("main: received {pong:?} message");
 
     tokio::time::sleep(10.std_seconds()).await;
