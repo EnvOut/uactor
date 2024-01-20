@@ -1,4 +1,4 @@
-use crate::context::ActorContext;
+use crate::context::{ActorContext, Context};
 use crate::message::Message;
 
 #[allow(unused_variables)]
@@ -112,7 +112,7 @@ pub trait Handler<M>
         M: Message,
 {
     /// This method is called for every message received by this actor.
-    async fn handle(&mut self, msg: M, ctx: &mut <Self as Actor>::Context) -> HandleResult;
+    async fn handle(&mut self, msg: M, ctx: &mut Context) -> HandleResult;
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;

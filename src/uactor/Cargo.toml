@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.3.3"
+version = "0.4.1"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -11,10 +11,12 @@ description = "The fastest and most modular actor system that doesn’t force yo
 
 [dependencies]
 tokio = { workspace = true }
+futures = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 paste = "1.0"
+derive_more = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3" }

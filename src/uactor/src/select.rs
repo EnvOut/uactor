@@ -1,11 +1,12 @@
 use std::future::pending;
 use crate::actor::{Actor, Handler};
+use crate::context::Context;
 use crate::datasource::DataSource;
 use crate::message::Message;
 
 #[async_trait::async_trait]
 pub trait ActorSelect<Z: Actor> {
-    async fn select(&mut self, ctx: &mut Z::Context, actor: &mut Z) -> SelectResult;
+    async fn select(&mut self, ctx: &mut Context, actor: &mut Z) -> SelectResult;
 }
 
 pub type SelectResult = Result<(), Box<dyn std::error::Error>>;
@@ -24,7 +25,7 @@ mod select_from_tuple {
                     $($T: DataSource + Send, )*
                     A: $(Handler<$T::Item> + )* Send,
             {
-                async fn select(&mut self, ctx: &mut A::Context, actor: &mut A) -> SelectResult {
+                async fn select(&mut self, ctx: &mut Context, actor: &mut A) -> SelectResult {
                     let ($($T, )*) = self;
                     tokio::select! {
                         $(
@@ -41,7 +42,7 @@ mod select_from_tuple {
 
     #[async_trait::async_trait]
     impl<A: Actor> ActorSelect<A> for () {
-        async fn select(&mut self, _: &mut A::Context, _: &mut A) -> SelectResult {
+        async fn select(&mut self, _: &mut Context, _: &mut A) -> SelectResult {
             let never = pending::<()>();
             never.await;
             Ok(())
@@ -55,7 +56,7 @@ mod select_from_tuple {
             S1: DataSource + Send,
             A: Handler<S1::Item> + Send,
     {
-        async fn select(&mut self, ctx: &mut A::Context, actor: &mut A) -> SelectResult {
+        async fn select(&mut self, ctx: &mut Context, actor: &mut A) -> SelectResult {
             if let Ok(msg) = self.next().await {
                 let _ = actor.handle(msg, ctx).await?;
             }

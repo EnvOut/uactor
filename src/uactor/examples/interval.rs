@@ -27,11 +27,11 @@ mod actor1 {
         interval_count: u8,
     }
 
-    impl Actor for Actor1 { type Context = Context<Actor1>; }
+    impl Actor for Actor1 { type Context = Context; }
 
     #[async_trait::async_trait]
     impl Handler<PingMsg> for Actor1 {
-        async fn handle(&mut self, ping: PingMsg, _: &mut <Self as Actor>::Context) -> HandleResult {
+        async fn handle(&mut self, ping: PingMsg, _: &mut Context) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
@@ -41,7 +41,7 @@ mod actor1 {
 
     #[async_trait::async_trait]
     impl Handler<IntervalMessage> for Actor1 {
-        async fn handle(&mut self, IntervalMessage { time: _, duration }: IntervalMessage, _: &mut <Self as Actor>::Context) -> HandleResult {
+        async fn handle(&mut self, IntervalMessage { time: _, duration }: IntervalMessage, _: &mut Context) -> HandleResult {
             self.interval_count += 1;
             println!("actor1: received {}nd interval message", self.interval_count);
             Ok(())
@@ -55,7 +55,7 @@ mod actor1 {
 async fn main() -> anyhow::Result<()>{
     let actor1 = Actor1::default();
 
-    let system = System::global();
+    let system = System::global().build();
 
     let interval = tokio::time::interval(1.std_seconds());
 

@@ -41,7 +41,7 @@ pub mod actor1 {
         pub resp_tx: tokio::sync::mpsc::Sender<RespMsg>,
     }
 
-    impl Actor for Actor1 { type Context = Context<Self>; }
+    impl Actor for Actor1 { type Context = Context; }
 
     #[async_trait::async_trait]
     impl Handler<PingPongMsg> for Actor1 {
@@ -76,7 +76,7 @@ pub mod actor2 {
         }
     }
 
-    impl Actor for Actor2 { type Context = Context<Self>; }
+    impl Actor for Actor2 { type Context = Context; }
 }
 
 #[tokio::main]
@@ -93,7 +93,8 @@ async fn main() {
     let actor1 = Actor1 { resp_tx };
     let actor2  = Actor2;
 
-    let system = System::global();
+    let system = System::global()
+        .build();
 
     let handle1 = system.run(actor1, (ping_rx, req_rx)).await;
     let handle2 = system.run(actor2, resp_rx).await;
