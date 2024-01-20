@@ -30,5 +30,7 @@ pub struct IntervalMessage {
     pub duration: Duration,
 }
 
+pub type Reply<T> = tokio::sync::oneshot::Sender<T>;
+
 message_impl! { IntervalMessage, Empty, i64, i32, i16, i8, u64, u32, u16, u8, f64, f32, String, NonZeroI64, NonZeroI32, NonZeroI16, NonZeroI8, NonZeroU64, NonZeroU32, NonZeroU16, NonZeroU8 }
 
