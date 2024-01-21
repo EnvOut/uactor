@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 use crate::actor::Actor;
-use crate::context::{ActorContext, Context};
-use crate::context::extensions::{Extension, Extensions};
+use crate::context::Context;
+use crate::context::extensions::Extensions;
+use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
 
@@ -19,7 +20,7 @@ impl System {
 }
 
 impl System {
-    pub async fn run<A, S>(&self, mut actor: A, mut select: S) -> JoinHandle<()>
+    pub async fn run<A, S>(&self, mut actor: A, actor_name: Option<String>, mut select: S) -> JoinHandle<()>
         where
             A: Actor + Send,
             S: ActorSelect<A> + Send + 'static
@@ -27,15 +28,16 @@ impl System {
         let mut ctx: Context = self.create_context();
 
         let system_name = self.name.clone();
-        let process_name = std::any::type_name::<A>().to_owned();
+
+        let actor_name= actor_name.unwrap_or_else(|| std::any::type_name::<A>().to_owned());
 
         let handle = tokio::spawn(async move {
-            tracing::debug!("The system: {:?} spawned process: {:?}", system_name, process_name);
+            tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, actor_name);
 
             loop {
-                tracing::debug!("iteration of the process: {process_name:?}");
+                tracing::debug!("iteration of the process: {actor_name:?}");
                 let result = select.select(&mut ctx, &mut actor).await;
-                tracing::debug!("{process_name:?} result: {result:?}");
+                process_iteration_result(&actor_name, result);
             }
         });
         handle
@@ -103,7 +105,7 @@ pub mod builder {
             self
         }
 
-        pub fn build(mut self) -> System {
+        pub fn build(self) -> System {
             System::new(self.name, Arc::new(self.extensions))
         }
     }

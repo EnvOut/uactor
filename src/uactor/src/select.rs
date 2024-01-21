@@ -1,5 +1,5 @@
 use std::future::pending;
-use crate::actor::{Actor, Handler};
+use crate::actor::{Actor, Handler, HandleResult};
 use crate::context::Context;
 use crate::datasource::DataSource;
 use crate::message::Message;
@@ -9,7 +9,7 @@ pub trait ActorSelect<Z: Actor> {
     async fn select(&mut self, ctx: &mut Context, actor: &mut Z) -> SelectResult;
 }
 
-pub type SelectResult = Result<(), Box<dyn std::error::Error>>;
+pub type SelectResult = HandleResult;
 
 #[doc(hidden)]
 #[allow(non_snake_case)]

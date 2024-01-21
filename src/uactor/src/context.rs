@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use crate::actor::Actor;
 use crate::context::extensions::{Extension, ExtensionErrors, Extensions};
 
 pub trait ActorContext: Default + Sized + Unpin + 'static { }

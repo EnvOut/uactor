@@ -21,19 +21,20 @@ pub trait Actor: Sized + Unpin + 'static {
 #[macro_export]
 macro_rules! spawn_with_ref {
     ($S: ident, $ActorInstance: ident: $ActorType: ident, $($Timeout: ident),*) => {{
+        let actor_name: String = stringify!($ActorType).to_owned();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let handle = $S.run($ActorInstance, ($($Timeout,)* rx)).await;
-
+            let handle = $S.run($ActorInstance, Some(actor_name), ($($Timeout,)* rx)).await;
             let actor_ref = [<$ActorType Ref>]::new(tx);
             (actor_ref, handle)
         }
     }};
 
     ($S: ident, $ActorInstance: ident: $ActorType: ident) => {{
+        let actor_name: String = stringify!($ActorType).to_owned();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let handle = $S.run($ActorInstance, (rx)).await;
+            let handle = $S.run($ActorInstance, Some(actor_name), (rx)).await;
 
             let actor_ref = [<$ActorType Ref>]::new(tx);
             (actor_ref, handle)

@@ -1,3 +1,4 @@
+use std::time::Duration;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::layer::SubscriberExt;
@@ -96,11 +97,14 @@ async fn main() {
     let system = System::global()
         .build();
 
-    let handle1 = system.run(actor1, (ping_rx, req_rx)).await;
-    let handle2 = system.run(actor2, resp_rx).await;
+    let handle1 = system.run(actor1, None, (ping_rx, req_rx)).await;
+    let handle2 = system.run(actor2, None, resp_rx).await;
 
     ping_tx.send(PingPongMsg::Ping).await.unwrap();
     req_tx.send(ReqMsg::GET).await.unwrap();
 
-    tokio::join!(handle1, handle2);
+    // Tokio aspects to stop spawned tasks without errors
+    tokio::time::sleep(Duration::from_nanos(1)).await;
+    handle1.abort_handle().abort();
+    handle2.abort_handle().abort();
 }
