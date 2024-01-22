@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.4.3"
+version = "0.5.1"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -21,6 +21,7 @@ derive_more = { workspace = true }
 tracing-subscriber = { version = "0.3" }
 anyhow = "1"
 time = "0.3"
+tokio = { version = "1.35.1", features = ["full"] }
 
 [[example]]
 name = "base_sample"
