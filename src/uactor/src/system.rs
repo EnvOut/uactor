@@ -20,7 +20,7 @@ impl System {
 }
 
 impl System {
-    pub async fn run<A, S>(&self, mut actor: A, actor_name: Option<String>, mut select: S) -> JoinHandle<()>
+    pub fn run<A, S>(&self, mut actor: A, actor_name: Option<String>, mut select: S) -> JoinHandle<()>
         where
             A: Actor + Send,
             S: ActorSelect<A> + Send + 'static
