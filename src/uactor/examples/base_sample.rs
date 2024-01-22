@@ -97,8 +97,8 @@ async fn main() {
     let system = System::global()
         .build();
 
-    let handle1 = system.run(actor1, None, (ping_rx, req_rx)).await;
-    let handle2 = system.run(actor2, None, resp_rx).await;
+    let handle1 = system.run(actor1, None, (ping_rx, req_rx));
+    let handle2 = system.run(actor2, None, resp_rx);
 
     ping_tx.send(PingPongMsg::Ping).await.unwrap();
     req_tx.send(ReqMsg::GET).await.unwrap();

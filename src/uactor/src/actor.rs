@@ -24,7 +24,7 @@ macro_rules! spawn_with_ref {
         let actor_name: String = stringify!($ActorType).to_owned();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let handle = $S.run($ActorInstance, Some(actor_name), ($($Timeout,)* rx)).await;
+            let handle = $S.run($ActorInstance, Some(actor_name), ($($Timeout,)* rx));
             let actor_ref = [<$ActorType Ref>]::new(tx);
             (actor_ref, handle)
         }
@@ -34,7 +34,7 @@ macro_rules! spawn_with_ref {
         let actor_name: String = stringify!($ActorType).to_owned();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let handle = $S.run($ActorInstance, Some(actor_name), (rx)).await;
+            let handle = $S.run($ActorInstance, Some(actor_name), (rx));
 
             let actor_ref = [<$ActorType Ref>]::new(tx);
             (actor_ref, handle)
