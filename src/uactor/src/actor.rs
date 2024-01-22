@@ -52,7 +52,7 @@ macro_rules! generate_actor_ref {
             }
             impl uactor::message::Message for [<$ActorType Msg>] { }
 
-            #[async_trait::async_trait]
+
             impl uactor::actor::Handler<[<$ActorType Msg>]> for $ActorType {
                 async fn handle(&mut self, msg: [<$ActorType Msg>], ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {
                     match msg {
@@ -106,14 +106,14 @@ macro_rules! generate_actor_ref {
     };
 }
 
-#[async_trait::async_trait]
+
 pub trait Handler<M>
     where
         Self: Actor,
         M: Message,
 {
     /// This method is called for every message received by this actor.
-    async fn handle(&mut self, msg: M, ctx: &mut Context) -> HandleResult;
+    fn handle(&mut self, msg: M, ctx: &mut Context) -> impl std::future::Future<Output = HandleResult> + Send;
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;

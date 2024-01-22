@@ -1,10 +1,10 @@
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::sync::mpsc::{Sender, UnboundedSender};
 
-#[async_trait::async_trait]
+
 pub trait DataPublisher: TryClone {
     type Item;
-    async fn publish(&self, data: Self::Item) -> DataPublisherResult;
+    fn publish(&self, data: Self::Item) -> impl std::future::Future<Output = DataPublisherResult> + Send;
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -43,7 +43,7 @@ impl From<oneshot::error::RecvError> for DataPublisherErrors {
 
 pub type DataPublisherResult = Result<(), DataPublisherErrors>;
 
-#[async_trait::async_trait]
+
 impl<T> DataPublisher for mpsc::Sender<T> where T: Send {
     type Item = T;
 
@@ -60,7 +60,7 @@ impl<T> TryClone for Sender<T> where T: Send {
     }
 }
 
-#[async_trait::async_trait]
+
 impl<T> DataPublisher for mpsc::UnboundedSender<T> where T: Send {
     type Item = T;
 
@@ -75,7 +75,7 @@ impl<T> TryClone for UnboundedSender<T> where T: Send {
     }
 }
 
-#[async_trait::async_trait]
+
 impl<T> DataPublisher for watch::Sender<T> where T: Send + Sync {
     type Item = T;
 

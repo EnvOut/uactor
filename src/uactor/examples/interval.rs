@@ -29,7 +29,7 @@ mod actor1 {
 
     impl Actor for Actor1 { type Context = Context; }
 
-    #[async_trait::async_trait]
+
     impl Handler<PingMsg> for Actor1 {
         async fn handle(&mut self, ping: PingMsg, _: &mut Context) -> HandleResult {
             println!("actor1: Received ping message");
@@ -39,7 +39,7 @@ mod actor1 {
         }
     }
 
-    #[async_trait::async_trait]
+
     impl Handler<IntervalMessage> for Actor1 {
         async fn handle(&mut self, IntervalMessage { time: _, duration }: IntervalMessage, _: &mut Context) -> HandleResult {
             self.interval_count += 1;

@@ -44,7 +44,7 @@ pub mod actor1 {
 
     impl Actor for Actor1 { type Context = Context; }
 
-    #[async_trait::async_trait]
+
     impl Handler<PingPongMsg> for Actor1 {
         async fn handle(&mut self, msg: PingPongMsg, ctx: &mut Self::Context) -> HandleResult {
             println!("actor1 handle PingPongMsg: {msg:?}");
@@ -52,7 +52,7 @@ pub mod actor1 {
         }
     }
 
-    #[async_trait::async_trait]
+
     impl Handler<ReqMsg> for Actor1 {
         async fn handle(&mut self, msg: ReqMsg, ctx: &mut Self::Context) -> HandleResult {
             println!("actor1 handle ReqMsg: {msg:?}");
@@ -69,7 +69,7 @@ pub mod actor2 {
 
     pub struct Actor2;
 
-    #[async_trait::async_trait]
+
     impl Handler<RespMsg> for Actor2 {
         async fn handle(&mut self, msg: RespMsg, ctx: &mut Self::Context) -> HandleResult {
             println!("actor2 handle RespMsg: {msg:?}");
@@ -87,8 +87,8 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let (ping_tx, mut ping_rx) = tokio::sync::mpsc::channel::<PingPongMsg>(10);
-    let (req_tx, mut req_rx) = tokio::sync::mpsc::channel::<ReqMsg>(10);
+    let (ping_tx, ping_rx) = tokio::sync::mpsc::channel::<PingPongMsg>(10);
+    let (req_tx, req_rx) = tokio::sync::mpsc::channel::<ReqMsg>(10);
     let (resp_tx, resp_rx) = tokio::sync::mpsc::channel::<RespMsg>(10);
 
     let actor1 = Actor1 { resp_tx };
