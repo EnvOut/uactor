@@ -24,7 +24,7 @@ mod actor1 {
 
     impl Actor for Actor1 { type Context = Context; }
 
-    #[async_trait::async_trait]
+
     impl Handler<PingMsg> for Actor1 {
         async fn handle(&mut self, ping: PingMsg, _: &mut Context) -> HandleResult {
             println!("actor1: Received ping message");
@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
 
     let system = System::global().build();
 
-    let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
+    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
 
     let pong = actor1_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
     println!("main: received {pong:?} message");

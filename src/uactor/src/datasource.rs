@@ -24,13 +24,13 @@ impl From<broadcast::error::RecvError> for DataSourceErrors {
     }
 }
 
-#[async_trait::async_trait]
+
 pub trait DataSource {
     type Item;
-    async fn next(&mut self) -> DataSourceResult<Self::Item>;
+    fn next(&mut self) -> impl std::future::Future<Output = DataSourceResult<Self::Item>> + Send;
 }
 
-#[async_trait::async_trait]
+
 impl<T> DataSource for mpsc::Receiver<T> where T: Send {
     type Item = T;
 
@@ -43,7 +43,7 @@ impl<T> DataSource for mpsc::Receiver<T> where T: Send {
     }
 }
 
-#[async_trait::async_trait]
+
 impl<T> DataSource for mpsc::UnboundedReceiver<T> where T: Send {
     type Item = T;
 
@@ -56,7 +56,7 @@ impl<T> DataSource for mpsc::UnboundedReceiver<T> where T: Send {
     }
 }
 
-#[async_trait::async_trait]
+
 impl<T> DataSource for watch::Receiver<T> where T: Clone + Send + Sync {
     type Item = T;
 
@@ -67,7 +67,7 @@ impl<T> DataSource for watch::Receiver<T> where T: Clone + Send + Sync {
     }
 }
 
-#[async_trait::async_trait]
+
 impl<T> DataSource for broadcast::Receiver<T>  where T: Clone + Send + Sync {
     type Item = T;
 
@@ -76,7 +76,7 @@ impl<T> DataSource for broadcast::Receiver<T>  where T: Clone + Send + Sync {
     }
 }
 
-#[async_trait::async_trait]
+
 impl<T> DataSource for oneshot::Receiver<T> where T: Send {
     type Item = T;
 
@@ -85,7 +85,7 @@ impl<T> DataSource for oneshot::Receiver<T> where T: Send {
     }
 }
 
-#[async_trait::async_trait]
+
 impl DataSource for Interval {
     type Item = IntervalMessage;
 

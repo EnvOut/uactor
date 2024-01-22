@@ -4,9 +4,9 @@ use crate::context::Context;
 use crate::datasource::DataSource;
 use crate::message::Message;
 
-#[async_trait::async_trait]
-pub trait ActorSelect<Z: Actor> {
-    async fn select(&mut self, ctx: &mut Context, actor: &mut Z) -> SelectResult;
+
+pub trait ActorSelect<Z: Actor + Send> {
+    fn select(&mut self, ctx: &mut Context, actor: &mut Z) -> impl std::future::Future<Output = SelectResult> + Send;
 }
 
 pub type SelectResult = HandleResult;
@@ -18,7 +18,7 @@ mod select_from_tuple {
 
     macro_rules! select_from_tuple {
         ($($T: ident),*) => {
-            #[async_trait::async_trait]
+
             impl<A, $($T),+> ActorSelect<A> for ($($T),+)
                 where
                     $($T::Item: Message + Send, )*
@@ -40,16 +40,14 @@ mod select_from_tuple {
         };
     }
 
-    #[async_trait::async_trait]
-    impl<A: Actor> ActorSelect<A> for () {
+
+    impl<A: Actor + Send> ActorSelect<A> for () {
         async fn select(&mut self, _: &mut Context, _: &mut A) -> SelectResult {
-            let never = pending::<()>();
-            never.await;
-            Ok(())
+            pending::<SelectResult>().await
         }
     }
 
-    #[async_trait::async_trait]
+
     impl<A, S1> ActorSelect<A> for S1
         where
             S1::Item: Message + Send,

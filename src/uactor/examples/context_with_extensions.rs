@@ -30,7 +30,7 @@ mod actor1 {
 
     impl Actor for Actor1 { type Context = Context; }
 
-    #[async_trait::async_trait]
+
     impl Handler<PingMsg> for Actor1 {
         async fn handle(&mut self, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor1: Received ping message");
@@ -58,7 +58,7 @@ mod actor2 {
 
     impl Actor for Actor2 { type Context = Context; }
 
-    #[async_trait::async_trait]
+
     impl Handler<PingMsg> for Actor2 {
         async fn handle(&mut self, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor2: Received ping message");
@@ -110,10 +110,10 @@ async fn main() -> anyhow::Result<()> {
         .extension(service2).build();
 
     let actor1 = Actor1;
-    let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
+    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
 
     let actor2 = Actor2;
-    let (mut actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
+    let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
 
     let pong1 = actor1_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
     let pong2 = actor2_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
