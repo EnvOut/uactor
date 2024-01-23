@@ -10,17 +10,6 @@ pub struct Context {
 
 impl ActorContext for Context {}
 
-impl Context {
-    pub fn get_extension<T>(&self) -> Result<&Extension<T>, ExtensionErrors> where T: Send + Sync + 'static {
-        let option = self.extensions.get::<Extension<T>>();
-        if let Some(extension) = option {
-            return Ok(extension);
-        } else {
-            return Err(ExtensionErrors::MissingExtension(format!("{:?}", std::any::type_name::<T>())));
-        }
-    }
-}
-
 impl Default for Context {
     fn default() -> Self {
         Self {

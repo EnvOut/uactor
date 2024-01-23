@@ -2,7 +2,7 @@ use std::sync::Arc;
 use tokio::task::JoinHandle;
 use crate::actor::Actor;
 use crate::context::Context;
-use crate::context::extensions::Extensions;
+use crate::context::extensions::{Extension, ExtensionErrors, Extensions};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
@@ -16,6 +16,17 @@ pub struct System {
 impl System {
     pub fn global() -> SystemBuilder {
         SystemBuilder::new_global()
+    }
+}
+
+impl System {
+    pub fn get_extension<T>(&self) -> Result<&Extension<T>, ExtensionErrors> where T: Send + Sync + 'static {
+        let option = self.extensions.get::<Extension<T>>();
+        if let Some(extension) = option {
+            return Ok(extension);
+        } else {
+            return Err(ExtensionErrors::MissingExtension(format!("{:?}", std::any::type_name::<T>())));
+        }
     }
 }
 

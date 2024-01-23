@@ -34,15 +34,23 @@ pub mod messages {
 }
 
 pub mod actor1 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
     use uactor::context::Context;
+    use uactor::system::System;
     use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
     pub struct Actor1 {
         pub resp_tx: tokio::sync::mpsc::Sender<RespMsg>,
     }
 
-    impl Actor for Actor1 { type Context = Context; }
+    impl Actor for Actor1 {
+        type Context = Context;
+        type State = ();
+
+        async fn pre_start(&mut self, _: &System) -> ActorPreStartResult<Self::State> {
+            Ok((()))
+        }
+    }
 
 
     impl Handler<PingPongMsg> for Actor1 {

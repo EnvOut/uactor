@@ -1,16 +1,34 @@
+use std::pin::Pin;
 use crate::context::{ActorContext, Context};
 use crate::message::Message;
+use crate::system::System;
+
+pub trait State: std::any::Any + Send + 'static {}
+impl<T: std::any::Any + Send + 'static> State for T {}
+pub type ActorPreStartResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
+
+use core::future::Future;
 
 #[allow(unused_variables)]
 pub trait Actor: Sized + Unpin + 'static {
     /// Actor execution context type
     type Context: ActorContext + Send;
 
+    type State: State;
+
     // fn started(&mut self, ctx: &mut Self::Context) {}
     // fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
     //     Running::Stop
     // }
     // fn stopped(&mut self, ctx: &mut Self::Context) {}
+    // fn pre_start(&mut self, ctx: &mut System) -> Box<Pin<dyn Future<Output=()> + Send>> {
+    //
+    // }
+    async fn pre_start(
+        &mut self,
+        // myself: ActorRef<Self::Msg>,
+        system: &System,
+    ) -> ActorPreStartResult<Self::State>;
 
     fn default_context() -> Self::Context{
         let ctx: Self::Context = Default::default();
