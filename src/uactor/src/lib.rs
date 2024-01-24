@@ -1,4 +1,5 @@
 pub mod message;
+pub mod di;
 pub mod select;
 pub mod datasource;
 pub mod data_publisher;

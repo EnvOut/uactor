@@ -8,13 +8,14 @@ impl<T: std::any::Any + Send + 'static> State for T {}
 pub type ActorPreStartResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
 use core::future::Future;
+use crate::di::Inject;
 
 #[allow(unused_variables)]
 pub trait Actor: Sized + Unpin + 'static {
     /// Actor execution context type
     type Context: ActorContext + Send;
 
-    type State: State;
+    type State: Inject;
 
     async fn pre_start(
         &mut self,

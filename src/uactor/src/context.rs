@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::context::extensions::{Extension, ExtensionErrors, Extensions};
+use crate::context::extensions::{Service, ExtensionErrors, Extensions};
 
 pub trait ActorContext: Default + Sized + Unpin + 'static { }
 
@@ -249,7 +249,7 @@ pub mod extensions {
 
     #[derive(Debug, Clone, Copy, Default)]
     #[must_use]
-    pub struct Extension<T>(pub T);
+    pub struct Service<T>(pub T);
 
     #[derive(thiserror::Error, Debug)]
     pub enum ExtensionErrors {

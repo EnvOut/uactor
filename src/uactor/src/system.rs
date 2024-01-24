@@ -1,8 +1,10 @@
+use std::any::Any;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 use crate::actor::Actor;
 use crate::context::Context;
-use crate::context::extensions::{Extension, ExtensionErrors, Extensions};
+use crate::context::extensions::{Service, ExtensionErrors, Extensions};
+use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
@@ -20,8 +22,21 @@ impl System {
 }
 
 impl System {
-    pub fn get_extension<T>(&self) -> Result<&Extension<T>, ExtensionErrors> where T: Send + Sync + 'static {
-        let option = self.extensions.get::<Extension<T>>();
+    pub fn get_service <T>(&self) -> Result<&Service<T>, ExtensionErrors>
+        where T: Clone + Send + Sync + 'static
+    {
+        let option = self.extensions.get::<Service<T>>();
+        if let Some(extension) = option {
+            return Ok(extension);
+        } else {
+            return Err(ExtensionErrors::MissingExtension(format!("{:?}", std::any::type_name::<T>())));
+        }
+    }
+
+    pub fn get<T>(&self) -> Result<&T, ExtensionErrors>
+        where T: Clone + Send + Sync + 'static
+    {
+        let option = self.extensions.get::<T>();
         if let Some(extension) = option {
             return Ok(extension);
         } else {
@@ -31,6 +46,13 @@ impl System {
 }
 
 impl System {
+    pub async fn start<A>(&self)-> Result<<A as Actor>::State, InjectError>
+        where A: Actor + Any,
+              <A as Actor>::State: Inject + Sized
+    {
+        Ok(A::State::inject(self).await)
+    }
+
     pub fn run<A, S>(&self, mut actor: A, actor_name: Option<String>, mut select: S) -> JoinHandle<()>
         where
             A: Actor + Send,
@@ -44,7 +66,7 @@ impl System {
 
         let handle = tokio::spawn(async move {
             tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, actor_name);
-
+            // actor.pre_start(&self).await.unwrap();
             loop {
                 tracing::debug!("iteration of the process: {actor_name:?}");
                 let result = select.select(&mut ctx, &mut actor).await;
@@ -83,7 +105,7 @@ impl System {
 
 pub mod builder {
     use std::sync::Arc;
-    use crate::context::extensions::{Extension, Extensions};
+    use crate::context::extensions::{Service, Extensions};
     use crate::system::System;
 
     const GLOBAL_SYSTEM_NAME: &str = "Global";
@@ -112,7 +134,7 @@ pub mod builder {
         }
 
         pub fn extension<T: Send + Sync + 'static>(mut self, data: T) -> Self {
-            self.extensions.insert(Extension(data));
+            self.extensions.insert(Service(data));
             self
         }
 
