@@ -1,9 +1,8 @@
-use std::future::pending;
-use crate::actor::{Actor, Handler, HandleResult};
+use crate::actor::{Actor, HandleResult, Handler};
 use crate::context::Context;
 use crate::datasource::DataSource;
 use crate::message::Message;
-
+use std::future::pending;
 
 pub trait ActorSelect<A: Actor + Send> {
     fn select(&mut self, inject: &mut A::Inject, ctx: &mut Context, actor: &mut A) -> impl std::future::Future<Output = SelectResult> + Send;
@@ -41,15 +40,14 @@ mod select_from_tuple {
         };
     }
 
-
     impl<A: Actor + Send> ActorSelect<A> for ()
-        where <A as Actor>::Inject: Send
+        where
+            <A as Actor>::Inject: Send,
     {
         async fn select(&mut self, _: &mut A::Inject, _: &mut Context, _: &mut A) -> SelectResult {
             pending::<SelectResult>().await
         }
     }
-
 
     impl<A, S1> ActorSelect<A> for S1
         where
@@ -96,4 +94,3 @@ mod select_from_tuple {
     select_from_tuple! { S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24, S25, S26, S27, S28, S29 }
     select_from_tuple! { S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11, S12, S13, S14, S15, S16, S17, S18, S19, S20, S21, S22, S23, S24, S25, S26, S27, S28, S29, S30 }
 }
-

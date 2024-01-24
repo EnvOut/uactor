@@ -1,3 +1,6 @@
+use crate::actor1::Actor1;
+use crate::actor2::Actor2;
+use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 use std::time::Duration;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
@@ -5,9 +8,6 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use uactor::select::ActorSelect;
 use uactor::system::System;
-use crate::actor1::Actor1;
-use crate::actor2::Actor2;
-use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
 pub mod messages {
     use uactor::message::Message;
@@ -21,7 +21,7 @@ pub mod messages {
 
     #[derive(Debug)]
     pub enum ReqMsg {
-        GET
+        GET,
     }
 
     #[derive(Debug)]
@@ -34,10 +34,10 @@ pub mod messages {
 }
 
 pub mod actor1 {
-    use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
+    use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
+    use uactor::actor::{Actor, ActorPreStartResult, HandleResult, Handler};
     use uactor::context::Context;
     use uactor::system::System;
-    use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
     pub struct Actor1 {
         pub resp_tx: tokio::sync::mpsc::Sender<RespMsg>,
@@ -48,14 +48,12 @@ pub mod actor1 {
         type Inject = ();
     }
 
-
     impl Handler<PingPongMsg> for Actor1 {
         async fn handle(&mut self, _: &mut Self::Inject, msg: PingPongMsg, ctx: &mut Self::Context) -> HandleResult {
             println!("actor1 handle PingPongMsg: {msg:?}");
             Ok(())
         }
     }
-
 
     impl Handler<ReqMsg> for Actor1 {
         async fn handle(&mut self, _: &mut Self::Inject, msg: ReqMsg, ctx: &mut Self::Context) -> HandleResult {
@@ -67,13 +65,12 @@ pub mod actor1 {
 }
 
 pub mod actor2 {
-    use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
+    use crate::messages::RespMsg;
+    use uactor::actor::{Actor, ActorPreStartResult, HandleResult, Handler};
     use uactor::context::Context;
     use uactor::system::System;
-    use crate::messages::RespMsg;
 
     pub struct Actor2;
-
 
     impl Handler<RespMsg> for Actor2 {
         async fn handle(&mut self, _: &mut Self::Inject, msg: RespMsg, _: &mut Self::Context) -> HandleResult {
@@ -100,10 +97,9 @@ async fn main() {
     let (resp_tx, resp_rx) = tokio::sync::mpsc::channel::<RespMsg>(10);
 
     let actor1 = Actor1 { resp_tx };
-    let actor2  = Actor2;
+    let actor2 = Actor2;
 
-    let mut system = System::global()
-        .build();
+    let mut system = System::global().build();
 
     let (actor1_name, handle1) = system.init_actor(actor1, None, (ping_rx, req_rx));
     let (actor2_name, handle2) = system.init_actor(actor2, None, resp_rx);

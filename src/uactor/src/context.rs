@@ -1,8 +1,7 @@
-pub trait ActorContext: Default + Sized + Unpin + 'static { }
+pub trait ActorContext: Default + Sized + Unpin + 'static {}
 
 #[derive(derive_more::Constructor, Default)]
-pub struct Context {
-}
+pub struct Context {}
 
 impl ActorContext for Context {}
 
@@ -242,9 +241,6 @@ pub mod extensions {
     #[derive(thiserror::Error, Debug)]
     pub enum ExtensionErrors {
         #[error("Type {kind:?} is not registered within system context {system_name:?}")]
-        NotRegisteredType {
-            kind: String,
-            system_name: String,
-        },
+        NotRegisteredType { kind: String, system_name: String },
     }
 }

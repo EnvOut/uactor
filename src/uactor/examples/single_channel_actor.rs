@@ -1,8 +1,8 @@
-use uactor::system::System;
 use crate::actor1::Actor1;
-use crate::messages::{PingMsg, PongMsg};
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
+use crate::messages::{PingMsg, PongMsg};
+use uactor::system::System;
 
 mod messages {
     use tokio::sync::oneshot::Sender;
@@ -16,9 +16,9 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, Handler, HandleResult};
-    use uactor::context::Context;
     use crate::messages::{PingMsg, PongMsg};
+    use uactor::actor::{Actor, HandleResult, Handler};
+    use uactor::context::Context;
 
     pub struct Actor1;
 
@@ -26,7 +26,6 @@ mod actor1 {
         type Context = Context;
         type Inject = ();
     }
-
 
     impl Handler<PingMsg> for Actor1 {
         async fn handle(&mut self, _: &mut Self::Inject, ping: PingMsg, _: &mut Context) -> HandleResult {
@@ -50,7 +49,9 @@ async fn main() -> anyhow::Result<()> {
 
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
 
-    let pong = actor1_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
+    let pong = actor1_ref
+        .ask_ping_msg::<PongMsg>(|reply| PingMsg(reply))
+        .await?;
     println!("main: received {pong:?} message");
 
     Ok(())

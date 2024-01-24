@@ -22,7 +22,7 @@ pub trait Actor: Sized + Unpin + 'static {
         Ok(())
     }
 
-    fn default_context() -> Self::Context{
+    fn default_context() -> Self::Context {
         let ctx: Self::Context = Default::default();
         ctx
     }
@@ -116,7 +116,7 @@ macro_rules! generate_actor_ref {
                     let (tx, rx) = tokio::sync::oneshot::channel::<A>();
                     let message = f(tx);
                     self.sender.publish([<$ActorType Msg>]::$Message(message))?;
-                    rx.await.map_err(|err| uactor::data_publisher::DataPublisherErrors::from(err))
+                    rx.await.map_err(uactor::data_publisher::DataPublisherErrors::from)
                 }
 
                 #[cfg(feature = "async_sender")]
@@ -128,7 +128,7 @@ macro_rules! generate_actor_ref {
                     let (tx, rx) = tokio::sync::oneshot::channel::<A>();
                     let message = f(tx);
                     self.sender.publish([<$ActorType Msg>]::$Message(message)).await?;
-                    rx.await.map_err(|err| uactor::data_publisher::DataPublisherErrors::from(err))
+                    rx.await.map_err(uactor::data_publisher::DataPublisherErrors::from)
                 }
 
                 // pub async fn [<send_with_reply_ $Message:snake>]<A>(&mut self, f: impl FnOnce(uactor::data_publisher::DataPublisher<Item=A>) -> $Message) -> Result<A, uactor::data_publisher::DataPublisherErrors>
@@ -137,7 +137,7 @@ macro_rules! generate_actor_ref {
                 //     let (tx, rx) = tokio::sync::oneshot::channel::<A>();
                 //     let message = f(tx);
                 //     self.sender.publish([<$ActorType Msg>]::$Message(message)).await?;
-                //     rx.await.map_err(|err| uactor::data_publisher::DataPublisherErrors::from(err))
+                //     rx.await.map_err(uactor::data_publisher::DataPublisherErrors::from))
                 // }
                 )*
 
@@ -147,11 +147,10 @@ macro_rules! generate_actor_ref {
     };
 }
 
-
 pub trait Handler<M>
-    where
-        Self: Actor,
-        M: Message,
+where
+    Self: Actor,
+    M: Message,
 {
     /// This method is called for every message received by this actor.
     fn handle(&mut self, inject: &mut Self::Inject, msg: M, ctx: &mut Context) -> impl std::future::Future<Output = HandleResult> + Send;

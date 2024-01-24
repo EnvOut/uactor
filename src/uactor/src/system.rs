@@ -1,17 +1,17 @@
-use std::any::Any;
-use std::collections::HashMap;
-use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
 use crate::actor::Actor;
+use crate::context::extensions::{ExtensionErrors, Extensions, Service};
 use crate::context::Context;
-use crate::context::extensions::{Service, ExtensionErrors, Extensions};
 use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
+use std::any::Any;
+use std::collections::HashMap;
+use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 #[derive(thiserror::Error, Debug)]
-pub enum ActorRunningError  {
+pub enum ActorRunningError {
     #[error("The actor: {0:?} has dropped")]
     Dropped(String),
     #[error("The actor: {0:?} has not been initialized or has already been started")]
@@ -24,7 +24,7 @@ pub enum ActorRunningError  {
 pub struct System {
     name: String,
     extensions: Extensions,
-    initialized_actors: HashMap<String, oneshot::Sender<Box<dyn Any + Send>>>
+    initialized_actors: HashMap<String, oneshot::Sender<Box<dyn Any + Send>>>,
 }
 
 impl System {}
@@ -36,35 +36,41 @@ impl System {
 }
 
 impl System {
-    pub fn get_service <T>(&self) -> Result<T, ExtensionErrors>
-        where T: Clone + Send + Sync + 'static
+    pub fn get_service<T>(&self) -> Result<T, ExtensionErrors>
+        where
+            T: Clone + Send + Sync + 'static,
     {
         let Service(data) = self.get::<Service<T>>()?;
         Ok(data.clone())
     }
 
     pub fn get<T>(&self) -> Result<&T, ExtensionErrors>
-        where T: Clone + Send + Sync + 'static
+        where
+            T: Clone + Send + Sync + 'static,
     {
         let option = self.extensions.get::<T>();
         if let Some(extension) = option {
             Ok(extension)
         } else {
             let type_name = std::any::type_name::<T>().to_owned();
-            Err(ExtensionErrors::NotRegisteredType { kind: type_name, system_name: self.name.clone() })
+            Err(ExtensionErrors::NotRegisteredType {
+                kind: type_name,
+                system_name: self.name.clone(),
+            })
         }
     }
 }
 
 impl System {
-    pub async fn run_actor<A>(&mut self, actor_name: &str)-> Result<(), ActorRunningError>
-        where A: Actor + Any,
-              <A as Actor>::Inject: Inject + Sized + Send
+    pub async fn run_actor<A>(&mut self, actor_name: &str) -> Result<(), ActorRunningError>
+        where
+            A: Actor + Any,
+            <A as Actor>::Inject: Inject + Sized + Send,
     {
         if let Some(tx) = self.initialized_actors.remove(actor_name) {
             let state = A::Inject::inject(self).await?;
             if tx.send(Box::new(state)).is_err() {
-                return Err(ActorRunningError::Dropped(actor_name.to_owned()))
+                return Err(ActorRunningError::Dropped(actor_name.to_owned()));
             }
         } else {
             return Err(ActorRunningError::MissedInitializationOrAlreadyStarted(actor_name.to_owned()))
@@ -82,9 +88,10 @@ impl System {
 
         let system_name = self.name.clone();
 
-        let actor_name= actor_name.unwrap_or_else(|| {
+        let actor_name = actor_name.unwrap_or_else(|| {
             let type_full_name = std::any::type_name::<A>();
-            let type_name = type_full_name.split("::")
+            let type_name = type_full_name
+                .split("::")
                 .last()
                 .unwrap_or(type_full_name)
                 .to_owned();
@@ -100,7 +107,8 @@ impl System {
 
             if let Ok(boxed_state) = actor_state_rx.await {
                 let mut state = {
-                    let boxed_state = boxed_state.downcast::<<A as Actor>::Inject>()
+                    let boxed_state = boxed_state
+                        .downcast::<<A as Actor>::Inject>()
                         .expect("failed to downcast state");
                     *boxed_state
                 };
@@ -110,7 +118,6 @@ impl System {
                     let result = select.select(&mut state, &mut ctx, &mut actor).await;
                     process_iteration_result(&name, result);
                 }
-
             } else {
                 tracing::error!("Can't run {name:?}, system dropped");
                 ()
@@ -125,7 +132,7 @@ impl System {
 }
 
 pub mod builder {
-    use crate::context::extensions::{Service, Extensions};
+    use crate::context::extensions::{Extensions, Service};
     use crate::system::System;
 
     const GLOBAL_SYSTEM_NAME: &str = "Global";

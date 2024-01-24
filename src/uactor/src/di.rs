@@ -2,7 +2,7 @@ use crate::context::extensions::ExtensionErrors;
 use crate::system::System;
 
 #[derive(thiserror::Error, Debug)]
-pub enum InjectError  {
+pub enum InjectError {
     #[error(transparent)]
     ExtensionErrors(#[from] ExtensionErrors),
 }
@@ -18,7 +18,10 @@ pub enum InjectError  {
 /// }
 ///
 /// impl Inject for References {
-///     async fn inject(system: &System) -> Result<Self, InjectError> where Self: Sized {
+///     async fn inject(system: &System) -> Result<Self, InjectError>
+///         where
+///             Self: Sized
+///     {
 ///         let var1 = system.get_service::<String>()?.clone();
 ///         let var2 = system.get_service::<String>()?.clone();
 ///         Ok(Self { var1: var1, var2: var2 })
@@ -26,11 +29,16 @@ pub enum InjectError  {
 /// }
 /// ```
 pub trait Inject {
-    async fn inject(system: &System) -> Result<Self, InjectError> where Self: Sized;
+    async fn inject(system: &System) -> Result<Self, InjectError>
+        where
+            Self: Sized;
 }
 
 impl Inject for () {
-    async fn inject(_: &System) -> Result<Self, InjectError> where Self: Sized {
+    async fn inject(_: &System) -> Result<Self, InjectError>
+        where
+            Self: Sized,
+    {
         Ok(())
     }
 }

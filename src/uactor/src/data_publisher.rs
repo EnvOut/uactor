@@ -3,8 +3,8 @@ pub use async_sender::*;
 
 #[cfg(feature = "async_sender")]
 mod async_sender {
-    use tokio::sync::{broadcast, mpsc, oneshot, watch};
     use tokio::sync::mpsc::{Sender, UnboundedSender};
+    use tokio::sync::{broadcast, mpsc, oneshot, watch};
 
     pub trait DataPublisher: TryClone {
         type Item;
@@ -14,7 +14,7 @@ mod async_sender {
     #[derive(thiserror::Error, Debug)]
     pub enum DataPublisherErrors {
         #[error("Channel closed")]
-        Closed
+        Closed,
     }
 
     pub trait TryClone: Sized {
@@ -24,7 +24,7 @@ mod async_sender {
     #[derive(thiserror::Error, Debug)]
     pub enum TryCloneError {
         #[error("Can't be cloned")]
-        CantClone
+        CantClone,
     }
 
     impl Clone for TryCloneError {
@@ -47,40 +47,53 @@ mod async_sender {
 
     pub type DataPublisherResult = Result<(), DataPublisherErrors>;
 
-
-    impl<T> DataPublisher for mpsc::Sender<T> where T: Send {
+    impl<T> DataPublisher for mpsc::Sender<T>
+        where
+            T: Send,
+    {
         type Item = T;
 
         async fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data).await.map_err(|err| DataPublisherErrors::from(err))
+            self.send(data)
+                .await
+                .map_err(DataPublisherErrors::from)
         }
-
-
     }
 
-    impl<T> TryClone for Sender<T> where T: Send {
+    impl<T> TryClone for Sender<T>
+        where
+            T: Send,
+    {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
         }
     }
 
-
-    impl<T> DataPublisher for mpsc::UnboundedSender<T> where T: Send {
+    impl<T> DataPublisher for mpsc::UnboundedSender<T>
+        where
+            T: Send,
+    {
         type Item = T;
 
         async fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data).map_err(|err| DataPublisherErrors::from(err))
+            self.send(data)
+                .map_err(DataPublisherErrors::from)
         }
     }
 
-    impl<T> TryClone for UnboundedSender<T> where T: Send {
+    impl<T> TryClone for UnboundedSender<T>
+        where
+            T: Send,
+    {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
         }
     }
 
-
-    impl<T> DataPublisher for watch::Sender<T> where T: Send + Sync {
+    impl<T> DataPublisher for watch::Sender<T>
+        where
+            T: Send + Sync,
+    {
         type Item = T;
 
         async fn publish(&self, data: Self::Item) -> DataPublisherResult {
@@ -88,21 +101,32 @@ mod async_sender {
         }
     }
 
-    impl<T> TryClone for watch::Sender<T> where T: Send {
+    impl<T> TryClone for watch::Sender<T>
+        where
+            T: Send,
+    {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Err(TryCloneError::CantClone)
         }
     }
 
-    impl<T> DataPublisher for broadcast::Sender<T> where T: Send + Sync {
+    impl<T> DataPublisher for broadcast::Sender<T>
+        where
+            T: Send + Sync,
+    {
         type Item = T;
 
         async fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data).map(|_receivers_count|()).map_err(|_| DataPublisherErrors::Closed)
+            self.send(data)
+                .map(|_receivers_count| ())
+                .map_err(|_| DataPublisherErrors::Closed)
         }
     }
 
-    impl<T> TryClone for broadcast::Sender<T> where T: Send {
+    impl<T> TryClone for broadcast::Sender<T>
+        where
+            T: Send,
+    {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
         }
@@ -114,8 +138,8 @@ pub use sync_sender::*;
 
 #[cfg(not(feature = "async_sender"))]
 mod sync_sender {
-    use tokio::sync::{broadcast, mpsc, oneshot, watch};
     use tokio::sync::mpsc::UnboundedSender;
+    use tokio::sync::{broadcast, mpsc, oneshot, watch};
 
     pub trait DataPublisher: TryClone {
         type Item;
@@ -125,7 +149,7 @@ mod sync_sender {
     #[derive(thiserror::Error, Debug)]
     pub enum DataPublisherErrors {
         #[error("Channel closed")]
-        Closed
+        Closed,
     }
 
     pub trait TryClone: Sized {
@@ -135,7 +159,7 @@ mod sync_sender {
     #[derive(thiserror::Error, Debug)]
     pub enum TryCloneError {
         #[error("Can't be cloned")]
-        CantClone
+        CantClone,
     }
 
     impl Clone for TryCloneError {
@@ -158,22 +182,31 @@ mod sync_sender {
 
     pub type DataPublisherResult = Result<(), DataPublisherErrors>;
 
-
-    impl<T> DataPublisher for mpsc::UnboundedSender<T> where T: Send {
+    impl<T> DataPublisher for mpsc::UnboundedSender<T>
+        where
+            T: Send,
+    {
         type Item = T;
 
         fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data).map_err(|err| DataPublisherErrors::from(err))
+            self.send(data)
+                .map_err(DataPublisherErrors::from)
         }
     }
 
-    impl<T> TryClone for UnboundedSender<T> where T: Send {
+    impl<T> TryClone for UnboundedSender<T>
+        where
+            T: Send,
+    {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
         }
     }
 
-    impl<T> DataPublisher for watch::Sender<T> where T: Send + Sync {
+    impl<T> DataPublisher for watch::Sender<T>
+        where
+            T: Send + Sync,
+    {
         type Item = T;
 
         fn publish(&self, data: Self::Item) -> DataPublisherResult {
@@ -181,21 +214,32 @@ mod sync_sender {
         }
     }
 
-    impl<T> TryClone for watch::Sender<T> where T: Send {
+    impl<T> TryClone for watch::Sender<T>
+        where
+            T: Send,
+    {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Err(TryCloneError::CantClone)
         }
     }
 
-    impl<T> DataPublisher for broadcast::Sender<T> where T: Send + Sync {
+    impl<T> DataPublisher for broadcast::Sender<T>
+        where
+            T: Send + Sync,
+    {
         type Item = T;
 
         fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data).map(|_receivers_count|()).map_err(|_| DataPublisherErrors::Closed)
+            self.send(data)
+                .map(|_receivers_count| ())
+                .map_err(|_| DataPublisherErrors::Closed)
         }
     }
 
-    impl<T> TryClone for broadcast::Sender<T> where T: Send {
+    impl<T> TryClone for broadcast::Sender<T>
+        where
+            T: Send,
+    {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
         }
