@@ -46,10 +46,6 @@ pub mod actor1 {
     impl Actor for Actor1 {
         type Context = Context;
         type State = ();
-
-        async fn pre_start(&mut self, _: &System) -> ActorPreStartResult<Self::State> {
-            Ok((()))
-        }
     }
 
 
@@ -79,7 +75,7 @@ pub mod actor2 {
 
 
     impl Handler<RespMsg> for Actor2 {
-        async fn handle(&mut self, msg: RespMsg, ctx: &mut Self::Context) -> HandleResult {
+        async fn handle(&mut self, msg: RespMsg, _: &mut Self::Context) -> HandleResult {
             println!("actor2 handle RespMsg: {msg:?}");
             Ok(())
         }

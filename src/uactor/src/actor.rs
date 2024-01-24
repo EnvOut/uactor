@@ -16,19 +16,13 @@ pub trait Actor: Sized + Unpin + 'static {
 
     type State: State;
 
-    // fn started(&mut self, ctx: &mut Self::Context) {}
-    // fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
-    //     Running::Stop
-    // }
-    // fn stopped(&mut self, ctx: &mut Self::Context) {}
-    // fn pre_start(&mut self, ctx: &mut System) -> Box<Pin<dyn Future<Output=()> + Send>> {
-    //
-    // }
     async fn pre_start(
         &mut self,
-        // myself: ActorRef<Self::Msg>,
-        system: &System,
-    ) -> ActorPreStartResult<Self::State>;
+        state: &mut Self::State,
+        ctx: &mut Self::Context,
+    ) -> ActorPreStartResult<()> {
+        Ok(())
+    }
 
     fn default_context() -> Self::Context{
         let ctx: Self::Context = Default::default();

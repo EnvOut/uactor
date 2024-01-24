@@ -20,23 +20,33 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
     use uactor::context::Context;
-    use uactor::context::extensions::Extension;
+    use uactor::context::extensions::Service;
+    use uactor::system::System;
+    use crate::actor2::Actor2State;
     use crate::messages::{PingMsg, PongMsg};
-    use crate::services::Service1;
+    use crate::services::{Service1, Service2};
 
     pub struct Actor1;
 
-    impl Actor for Actor1 { type Context = Context; }
+    #[derive(derive_more::Constructor)]
+    pub struct Actor1State {
+        service1: Service1,
+    }
+
+    impl Actor for Actor1 {
+        type Context = Context;
+        type State = Actor1State;
+    }
 
 
     impl Handler<PingMsg> for Actor1 {
         async fn handle(&mut self, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor1: Received ping message");
 
-            let Extension(service1) = ctx.get_extension::<Service1>()?;
-            service1.do_something();
+            // let Extension(service1) = ctx.get_extension::<Service1>()?;
+            // service1.do_something();
 
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
@@ -48,23 +58,29 @@ mod actor1 {
 }
 
 mod actor2 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
     use uactor::context::Context;
-    use uactor::context::extensions::Extension;
+    use uactor::context::extensions::Service;
+    use uactor::system::System;
     use crate::messages::{PingMsg, PongMsg};
-    use crate::services::{Service1, Service2};
+    use crate::services::Service2;
 
     pub struct Actor2;
 
-    impl Actor for Actor2 { type Context = Context; }
+    #[derive(derive_more::Constructor)]
+    pub struct Actor2State {
+        service2: Service2,
+    }
 
+    impl Actor for Actor2 { type Context = Context;
+        type State = Actor2State;
+    }
 
     impl Handler<PingMsg> for Actor2 {
         async fn handle(&mut self, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor2: Received ping message");
 
-            let Extension(service2) = ctx.get_extension::<Service2>()?;
-            service2.do_something();
+            // service2.do_something();
 
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
@@ -76,6 +92,7 @@ mod actor2 {
 }
 
 pub mod services {
+    #[derive(Clone)]
     pub struct Service1 {
         // repository
         // other services
@@ -88,6 +105,7 @@ pub mod services {
     }
 
 
+    #[derive(Clone)]
     pub struct Service2 {
         // repository
         // other services
