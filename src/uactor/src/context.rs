@@ -1,20 +1,10 @@
-use std::sync::Arc;
-use crate::context::extensions::{Service, ExtensionErrors, Extensions};
-
 pub trait ActorContext: Default + Sized + Unpin + 'static { }
 
-#[derive(derive_more::Constructor)]
+#[derive(derive_more::Constructor, Default)]
 pub struct Context {
 }
 
 impl ActorContext for Context {}
-
-impl Default for Context {
-    fn default() -> Self {
-        Self {
-        }
-    }
-}
 
 pub mod extensions {
     use std::any::{Any, TypeId};
@@ -77,7 +67,7 @@ pub mod extensions {
         // pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
         pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
             self.map
-                .get_or_insert_with(|| Box::new(HashMap::default()))
+                .get_or_insert_with(|| Box::<HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>>::default())
                 .insert(TypeId::of::<T>(), Box::new(val))
                 .and_then(|boxed| {
                     (boxed as Box<dyn Any + 'static>)

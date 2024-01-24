@@ -1,14 +1,10 @@
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::collections::HashMap;
-use std::error::Error;
-use std::hash::BuildHasherDefault;
-use std::os::macos::raw::stat;
-use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use crate::actor::Actor;
 use crate::context::Context;
-use crate::context::extensions::{Service, ExtensionErrors, Extensions, IdHasher};
+use crate::context::extensions::{Service, ExtensionErrors, Extensions};
 use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
@@ -52,10 +48,10 @@ impl System {
     {
         let option = self.extensions.get::<T>();
         if let Some(extension) = option {
-            return Ok(extension);
+            Ok(extension)
         } else {
             let type_name = std::any::type_name::<T>().to_owned();
-            return Err(ExtensionErrors::NotRegisteredType { kind: type_name, system_name: self.name.clone() });
+            Err(ExtensionErrors::NotRegisteredType { kind: type_name, system_name: self.name.clone() })
         }
     }
 }
@@ -67,7 +63,7 @@ impl System {
     {
         if let Some(tx) = self.initialized_actors.remove(actor_name) {
             let state = A::Inject::inject(self).await?;
-            if let Err(err) = tx.send(Box::new(state)) {
+            if tx.send(Box::new(state)).is_err() {
                 return Err(ActorRunningError::Dropped(actor_name.to_owned()))
             }
         } else {
@@ -106,8 +102,7 @@ impl System {
                 let mut state = {
                     let boxed_state = boxed_state.downcast::<<A as Actor>::Inject>()
                         .expect("failed to downcast state");
-                    let state = *boxed_state;
-                    state
+                    *boxed_state
                 };
 
                 loop {
@@ -117,34 +112,12 @@ impl System {
                 }
 
             } else {
-                // System dropped
+                tracing::error!("Can't run {name:?}, system dropped");
                 ()
             }
         });
         (actor_name, handle)
     }
-
-    // pub async fn run_fn<A, F, S>(&self, f: F, mut select: S) -> JoinHandle<()>
-    //     where
-    //         A: Actor + Send,
-    //         F: FnOnce(&mut A::Context) -> A,
-    //         S: ActorSelect<A> + Send + 'static
-    // {
-    //     let mut ctx = self.create_context::<A>();
-    //     let mut actor = f(&mut ctx);
-    //
-    //     let process_name = std::any::type_name::<A>().to_owned();
-    //     let handle = tokio::spawn(async move {
-    //         tracing::debug!("Spawn process: {process_name:?}");
-    //
-    //         loop {
-    //             tracing::debug!("iteration of the process: {process_name:?}");
-    //             let result = select.select(&mut ctx, &mut actor).await;
-    //             tracing::debug!("{process_name:?} result: {result:?}");
-    //         }
-    //     });
-    //     handle
-    // }
 
     pub fn create_context(&self) -> Context {
         Context::new()
@@ -152,8 +125,6 @@ impl System {
 }
 
 pub mod builder {
-    use std::collections::HashMap;
-    use std::sync::Arc;
     use crate::context::extensions::{Service, Extensions};
     use crate::system::System;
 

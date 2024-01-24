@@ -72,7 +72,7 @@ impl<T> DataSource for broadcast::Receiver<T>  where T: Clone + Send + Sync {
     type Item = T;
 
     async fn next(&mut self) -> DataSourceResult<Self::Item> {
-        self.recv().await.map_err(|err| DataSourceErrors::from(err))
+        self.recv().await.map_err(DataSourceErrors::from)
     }
 }
 

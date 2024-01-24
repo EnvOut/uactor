@@ -1,13 +1,10 @@
-use std::pin::Pin;
 use crate::context::{ActorContext, Context};
 use crate::message::Message;
-use crate::system::System;
 
 pub trait State: std::any::Any + Send + 'static {}
 impl<T: std::any::Any + Send + 'static> State for T {}
 pub type ActorPreStartResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
-use core::future::Future;
 use crate::di::Inject;
 
 #[allow(unused_variables)]
