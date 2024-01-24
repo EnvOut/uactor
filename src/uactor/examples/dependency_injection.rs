@@ -55,19 +55,6 @@ mod actor1 {
         }
     }
 
-//     impl uactor::actor::Handler<Actor1Msg> for Actor1 {
-//     async fn handle(&mut self, inject: &mut  <Self as uactor::actor::Actor>::State, msg: Actor1Msg, ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {
-//         match msg {
-//             $(
-//             Actor1Msg::PingMsg(m) => {
-//                 self.handle(state, m, ctx).await?;
-//             }
-//             ),*
-//         }
-//         Ok(())
-//     }
-// }
-
     uactor::generate_actor_ref!(Actor1, { PingMsg });
 }
 

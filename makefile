@@ -8,4 +8,4 @@ run_all_examples:
     cargo run --example single_channel_actor
 
 publish:
-	cargo publish -p uactor --dry-run
+	cargo publish -p uactor #--dry-run

@@ -87,7 +87,11 @@ impl System {
         let system_name = self.name.clone();
 
         let actor_name= actor_name.unwrap_or_else(|| {
-            let type_name = std::any::type_name::<A>().to_owned();
+            let type_full_name = std::any::type_name::<A>();
+            let type_name = type_full_name.split("::")
+                .last()
+                .unwrap_or(type_full_name)
+                .to_owned();
             format!("{}-{}", type_name, (&type_name as *const String as i32))
         });
         let (actor_state_tx, actor_state_rx) = oneshot::channel::<Box<dyn Any + Send>>();
