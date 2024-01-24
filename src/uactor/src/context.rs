@@ -251,7 +251,10 @@ pub mod extensions {
 
     #[derive(thiserror::Error, Debug)]
     pub enum ExtensionErrors {
-        #[error("Extension not found: {0:?}")]
-        MissingExtension(String)
+        #[error("Type {kind:?} is not registered within system context {system_name:?}")]
+        NotRegisteredType {
+            kind: String,
+            system_name: String,
+        },
     }
 }

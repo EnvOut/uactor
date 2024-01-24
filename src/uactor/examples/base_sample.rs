@@ -45,12 +45,12 @@ pub mod actor1 {
 
     impl Actor for Actor1 {
         type Context = Context;
-        type State = ();
+        type Inject = ();
     }
 
 
     impl Handler<PingPongMsg> for Actor1 {
-        async fn handle(&mut self, msg: PingPongMsg, ctx: &mut Self::Context) -> HandleResult {
+        async fn handle(&mut self, _: &mut Self::Inject, msg: PingPongMsg, ctx: &mut Self::Context) -> HandleResult {
             println!("actor1 handle PingPongMsg: {msg:?}");
             Ok(())
         }
@@ -58,7 +58,7 @@ pub mod actor1 {
 
 
     impl Handler<ReqMsg> for Actor1 {
-        async fn handle(&mut self, msg: ReqMsg, ctx: &mut Self::Context) -> HandleResult {
+        async fn handle(&mut self, _: &mut Self::Inject, msg: ReqMsg, ctx: &mut Self::Context) -> HandleResult {
             println!("actor1 handle ReqMsg: {msg:?}");
             self.resp_tx.send(RespMsg::Ok).await?;
             Ok(())
@@ -76,7 +76,7 @@ pub mod actor2 {
 
 
     impl Handler<RespMsg> for Actor2 {
-        async fn handle(&mut self, msg: RespMsg, _: &mut Self::Context) -> HandleResult {
+        async fn handle(&mut self, _: &mut Self::Inject, msg: RespMsg, _: &mut Self::Context) -> HandleResult {
             println!("actor2 handle RespMsg: {msg:?}");
             Ok(())
         }
@@ -84,7 +84,7 @@ pub mod actor2 {
 
     impl Actor for Actor2 {
         type Context = Context;
-        type State = ();
+        type Inject = ();
     }
 }
 
@@ -102,11 +102,14 @@ async fn main() {
     let actor1 = Actor1 { resp_tx };
     let actor2  = Actor2;
 
-    let system = System::global()
+    let mut system = System::global()
         .build();
 
-    let handle1 = system.init_actor(actor1, None, (ping_rx, req_rx));
-    let handle2 = system.init_actor(actor2, None, resp_rx);
+    let (actor1_name, handle1) = system.init_actor(actor1, None, (ping_rx, req_rx));
+    let (actor2_name, handle2) = system.init_actor(actor2, None, resp_rx);
+
+    system.run_actor::<Actor1>(&actor1_name).await.unwrap();
+    system.run_actor::<Actor2>(&actor2_name).await.unwrap();
 
     ping_tx.send(PingPongMsg::Ping).await.unwrap();
     req_tx.send(ReqMsg::GET).await.unwrap();

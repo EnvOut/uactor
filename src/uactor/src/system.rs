@@ -13,7 +13,16 @@ use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
-pub type ActorRunningError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+#[derive(thiserror::Error, Debug)]
+pub enum ActorRunningError  {
+    #[error("The actor: {0:?} has dropped")]
+    Dropped(String),
+    #[error("The actor: {0:?} has not been initialized or has already been started")]
+    MissedInitializationOrAlreadyStarted(String),
+    #[error(transparent)]
+    InjectError(#[from] InjectError),
+}
 
 #[derive(derive_more::Constructor)]
 pub struct System {
@@ -45,30 +54,29 @@ impl System {
         if let Some(extension) = option {
             return Ok(extension);
         } else {
-            return Err(ExtensionErrors::MissingExtension(format!("{:?}", std::any::type_name::<T>())));
+            let type_name = std::any::type_name::<T>().to_owned();
+            return Err(ExtensionErrors::NotRegisteredType { kind: type_name, system_name: self.name.clone() });
         }
     }
 }
 
 impl System {
-    pub async fn run_actor<A>(&mut self, actor_name: &String)-> Result<(), ActorRunningError>
+    pub async fn run_actor<A>(&mut self, actor_name: &str)-> Result<(), ActorRunningError>
         where A: Actor + Any,
               <A as Actor>::Inject: Inject + Sized + Send
     {
         if let Some(tx) = self.initialized_actors.remove(actor_name) {
             let state = A::Inject::inject(self).await?;
             if let Err(err) = tx.send(Box::new(state)) {
-                // throws Актор уже дропнут
-                todo!()
+                return Err(ActorRunningError::Dropped(actor_name.to_owned()))
             }
         } else {
-            // throws Актор не был инициализирован или он уже был запущен
-            todo!()
+            return Err(ActorRunningError::MissedInitializationOrAlreadyStarted(actor_name.to_owned()))
         }
         Ok(())
     }
 
-    pub fn init_actor<A, S>(&mut self, mut actor: A, actor_name: Option<String>, mut select: S) -> JoinHandle<()>
+    pub fn init_actor<A, S>(&mut self, mut actor: A, actor_name: Option<String>, mut select: S) -> (String, JoinHandle<()>)
         where
             A: Actor + Send,
             S: ActorSelect<A> + Send + 'static,
@@ -78,14 +86,17 @@ impl System {
 
         let system_name = self.name.clone();
 
-        let actor_name= actor_name.unwrap_or_else(|| std::any::type_name::<A>().to_owned());
-
+        let actor_name= actor_name.unwrap_or_else(|| {
+            let type_name = std::any::type_name::<A>().to_owned();
+            format!("{}-{}", type_name, (&type_name as *const String as i32))
+        });
         let (actor_state_tx, actor_state_rx) = oneshot::channel::<Box<dyn Any + Send>>();
 
         self.initialized_actors.insert(actor_name.clone(), actor_state_tx);
 
+        let name = actor_name.clone();
         let handle = tokio::spawn(async move {
-            tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, actor_name);
+            tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, name);
 
             if let Ok(boxed_state) = actor_state_rx.await {
                 let mut state = {
@@ -96,9 +107,9 @@ impl System {
                 };
 
                 loop {
-                    tracing::debug!("iteration of the process: {actor_name:?}");
+                    tracing::debug!("iteration of the process: {name:?}");
                     let result = select.select(&mut state, &mut ctx, &mut actor).await;
-                    process_iteration_result(&actor_name, result);
+                    process_iteration_result(&name, result);
                 }
 
             } else {
@@ -106,7 +117,7 @@ impl System {
                 ()
             }
         });
-        handle
+        (actor_name, handle)
     }
 
     // pub async fn run_fn<A, F, S>(&self, f: F, mut select: S) -> JoinHandle<()>

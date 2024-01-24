@@ -1,6 +1,11 @@
+use crate::context::extensions::ExtensionErrors;
 use crate::system::System;
 
-pub type InjectError = Box<dyn std::error::Error + Send + Sync + 'static>;
+#[derive(thiserror::Error, Debug)]
+pub enum InjectError  {
+    #[error(transparent)]
+    ExtensionErrors(#[from] ExtensionErrors),
+}
 
 /// Sample:
 /// ```
@@ -22,4 +27,10 @@ pub type InjectError = Box<dyn std::error::Error + Send + Sync + 'static>;
 /// ```
 pub trait Inject {
     async fn inject(system: &System) -> Result<Self, InjectError> where Self: Sized;
+}
+
+impl Inject for () {
+    async fn inject(_: &System) -> Result<Self, InjectError> where Self: Sized {
+        Ok(())
+    }
 }

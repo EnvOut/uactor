@@ -153,8 +153,8 @@ async fn main() -> anyhow::Result<()> {
     let actor2 = Actor2;
     let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
 
-    system.run_actor::<Actor1>(&"actor1".to_owned()).await;
-    system.run_actor::<Actor2>(&"actor2".to_owned()).await;
+    system.run_actor::<Actor1>(actor1_ref.name()).await;
+    system.run_actor::<Actor2>(actor2_ref.name()).await;
 
     let pong1 = actor1_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
     let pong2 = actor2_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
