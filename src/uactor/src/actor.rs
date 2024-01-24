@@ -15,11 +15,11 @@ pub trait Actor: Sized + Unpin + 'static {
     /// Actor execution context type
     type Context: ActorContext + Send;
 
-    type State: Inject + Sized;
+    type Inject: Inject + Sized;
 
     async fn pre_start(
         &mut self,
-        state: &mut Self::State,
+        state: &mut Self::Inject,
         ctx: &mut Self::Context,
     ) -> ActorPreStartResult<()> {
         Ok(())
@@ -34,20 +34,20 @@ pub trait Actor: Sized + Unpin + 'static {
 #[macro_export]
 macro_rules! spawn_with_ref {
     ($S: ident, $ActorInstance: ident: $ActorType: ident, $($Timeout: ident),*) => {{
-        let actor_name: String = stringify!($ActorType).to_owned();
+        let actor_name: String = stringify!($ActorInstance).to_owned();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let handle = $S.run($ActorInstance, Some(actor_name), ($($Timeout,)* rx));
+            let handle = $S.init_actor($ActorInstance, Some(actor_name), ($($Timeout,)* rx));
             let actor_ref = [<$ActorType Ref>]::new(tx);
             (actor_ref, handle)
         }
     }};
 
     ($S: ident, $ActorInstance: ident: $ActorType: ident) => {{
-        let actor_name: String = stringify!($ActorType).to_owned();
+        let actor_name: String = stringify!($ActorInstance).to_owned();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let handle = $S.run($ActorInstance, Some(actor_name), (rx));
+            let handle = $S.init_actor($ActorInstance, Some(actor_name), (rx));
 
             let actor_ref = [<$ActorType Ref>]::new(tx);
             (actor_ref, handle)
@@ -67,11 +67,11 @@ macro_rules! generate_actor_ref {
 
 
             impl uactor::actor::Handler<[<$ActorType Msg>]> for $ActorType {
-                async fn handle(&mut self, msg: [<$ActorType Msg>], ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {
+                async fn handle(&mut self, inject: &mut  <Self as uactor::actor::Actor>::Inject, msg: [<$ActorType Msg>], ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {
                     match msg {
                         $(
                         [<$ActorType Msg>]::$Message(m) => {
-                            self.handle(m, ctx).await?;
+                            self.handle(inject, m, ctx).await?;
                         }
                         ),*
                     }
@@ -140,7 +140,7 @@ pub trait Handler<M>
         M: Message,
 {
     /// This method is called for every message received by this actor.
-    fn handle(&mut self, state: &mut  Self::State, msg: M, ctx: &mut Context) -> impl std::future::Future<Output = HandleResult> + Send;
+    fn handle(&mut self, inject: &mut Self::Inject, msg: M, ctx: &mut Context) -> impl std::future::Future<Output = HandleResult> + Send;
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;

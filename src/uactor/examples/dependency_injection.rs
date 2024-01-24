@@ -20,39 +20,53 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
+    use uactor::actor::{Actor, Handler, HandleResult};
     use uactor::context::Context;
-    use uactor::context::extensions::Service;
+    use uactor::di::{Inject, InjectError};
     use uactor::system::System;
-    use crate::actor2::Actor2State;
     use crate::messages::{PingMsg, PongMsg};
-    use crate::services::{Service1, Service2};
+    use crate::services::Service1;
 
     pub struct Actor1;
 
-    #[derive(derive_more::Constructor)]
-    pub struct Actor1State {
-        service1: Service1,
+    pub struct Services(Service1);
+
+    impl Inject for Services {
+        async fn inject(system: &System) -> Result<Self, InjectError> where Self: Sized {
+            let service1 = system.get_service()?;
+            Ok(Services(service1))
+        }
     }
 
     impl Actor for Actor1 {
         type Context = Context;
-        type State = Actor1State;
+        type Inject = Services;
     }
 
-
     impl Handler<PingMsg> for Actor1 {
-        async fn handle(&mut self, state: &mut  Self::State, ping: PingMsg, ctx: &mut Context) -> HandleResult {
+        async fn handle(&mut self, Services(service1): &mut Self::Inject, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor1: Received ping message");
 
-            // let Extension(service1) = ctx.get_extension::<Service1>()?;
-            // service1.do_something();
+            service1.do_something();
 
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
             Ok(())
         }
     }
+
+//     impl uactor::actor::Handler<Actor1Msg> for Actor1 {
+//     async fn handle(&mut self, inject: &mut  <Self as uactor::actor::Actor>::State, msg: Actor1Msg, ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {
+//         match msg {
+//             $(
+//             Actor1Msg::PingMsg(m) => {
+//                 self.handle(state, m, ctx).await?;
+//             }
+//             ),*
+//         }
+//         Ok(())
+//     }
+// }
 
     uactor::generate_actor_ref!(Actor1, { PingMsg });
 }
@@ -61,26 +75,32 @@ mod actor2 {
     use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
     use uactor::context::Context;
     use uactor::context::extensions::Service;
+    use uactor::di::{Inject, InjectError};
     use uactor::system::System;
     use crate::messages::{PingMsg, PongMsg};
-    use crate::services::Service2;
+    use crate::services::{Service1, Service2};
 
     pub struct Actor2;
 
-    #[derive(derive_more::Constructor)]
-    pub struct Actor2State {
-        service2: Service2,
+    pub struct Services(Service1);
+
+    impl Inject for Services {
+        async fn inject(system: &System) -> Result<Self, InjectError> where Self: Sized {
+            let service2 = system.get_service()?;
+            Ok(Services(service2))
+        }
     }
 
-    impl Actor for Actor2 { type Context = Context;
-        type State = Actor2State;
+    impl Actor for Actor2 {
+        type Context = Context;
+        type Inject = Services;
     }
 
     impl Handler<PingMsg> for Actor2 {
-        async fn handle(&mut self, state: &mut  Self::State, ping: PingMsg, ctx: &mut Context) -> HandleResult {
+        async fn handle(&mut self, Services(service2): &mut Self::Inject, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor2: Received ping message");
 
-            // service2.do_something();
+            service2.do_something();
 
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
@@ -123,7 +143,7 @@ async fn main() -> anyhow::Result<()> {
     let service1 = Service1 {};
     let service2 = Service2 {};
 
-    let system = System::global()
+    let mut system = System::global()
         .extension(service1)
         .extension(service2).build();
 
@@ -132,6 +152,9 @@ async fn main() -> anyhow::Result<()> {
 
     let actor2 = Actor2;
     let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
+
+    system.run_actor::<Actor1>(&"actor1".to_owned()).await;
+    system.run_actor::<Actor2>(&"actor2".to_owned()).await;
 
     let pong1 = actor1_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;
     let pong2 = actor2_ref.ask_ping_msg::<PongMsg>(|reply| PingMsg(reply)).await?;

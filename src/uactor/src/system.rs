@@ -18,8 +18,8 @@ pub type ActorRunningError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(derive_more::Constructor)]
 pub struct System {
     name: String,
-    extensions: Arc<Extensions>,
-    initialized_actors: HashMap<String, oneshot::Sender<Box<dyn Any + Send>>, BuildHasherDefault<IdHasher>>
+    extensions: Extensions,
+    initialized_actors: HashMap<String, oneshot::Sender<Box<dyn Any + Send>>>
 }
 
 impl System {}
@@ -53,10 +53,10 @@ impl System {
 impl System {
     pub async fn run_actor<A>(&mut self, actor_name: &String)-> Result<(), ActorRunningError>
         where A: Actor + Any,
-              <A as Actor>::State: Inject + Sized + Send
+              <A as Actor>::Inject: Inject + Sized + Send
     {
         if let Some(tx) = self.initialized_actors.remove(actor_name) {
-            let state = A::State::inject(self).await?;
+            let state = A::Inject::inject(self).await?;
             if let Err(err) = tx.send(Box::new(state)) {
                 // throws Актор уже дропнут
                 todo!()
@@ -72,7 +72,7 @@ impl System {
         where
             A: Actor + Send,
             S: ActorSelect<A> + Send + 'static,
-            <A as Actor>::State: Inject + Sized + Send
+            <A as Actor>::Inject: Inject + Sized + Send
     {
         let mut ctx: Context = self.create_context();
 
@@ -89,7 +89,7 @@ impl System {
 
             if let Ok(boxed_state) = actor_state_rx.await {
                 let mut state = {
-                    let boxed_state = boxed_state.downcast::<<A as Actor>::State>()
+                    let boxed_state = boxed_state.downcast::<<A as Actor>::Inject>()
                         .expect("failed to downcast state");
                     let state = *boxed_state;
                     state
@@ -132,7 +132,7 @@ impl System {
     // }
 
     pub fn create_context(&self) -> Context {
-        Context::new(self.extensions.clone())
+        Context::new()
     }
 }
 
@@ -173,7 +173,7 @@ pub mod builder {
         }
 
         pub fn build(self) -> System {
-            System::new(self.name, Arc::new(self.extensions), Default::default())
+            System::new(self.name, self.extensions, Default::default())
         }
     }
 }

@@ -5,7 +5,6 @@ pub trait ActorContext: Default + Sized + Unpin + 'static { }
 
 #[derive(derive_more::Constructor)]
 pub struct Context {
-    extensions: Arc<Extensions>,
 }
 
 impl ActorContext for Context {}
@@ -13,7 +12,6 @@ impl ActorContext for Context {}
 impl Default for Context {
     fn default() -> Self {
         Self {
-            extensions: Arc::new(Extensions::default()),
         }
     }
 }
