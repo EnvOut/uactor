@@ -1,19 +1,28 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
+use std::error::Error;
+use std::hash::BuildHasherDefault;
+use std::os::macos::raw::stat;
 use std::sync::Arc;
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use crate::actor::Actor;
 use crate::context::Context;
-use crate::context::extensions::{Service, ExtensionErrors, Extensions};
+use crate::context::extensions::{Service, ExtensionErrors, Extensions, IdHasher};
 use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
+pub type ActorRunningError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 #[derive(derive_more::Constructor)]
 pub struct System {
     name: String,
     extensions: Arc<Extensions>,
+    initialized_actors: HashMap<String, oneshot::Sender<Box<dyn Any + Send>>, BuildHasherDefault<IdHasher>>
 }
+
+impl System {}
 
 impl System {
     pub fn global() -> SystemBuilder {
@@ -22,15 +31,11 @@ impl System {
 }
 
 impl System {
-    pub fn get_service <T>(&self) -> Result<&Service<T>, ExtensionErrors>
+    pub fn get_service <T>(&self) -> Result<T, ExtensionErrors>
         where T: Clone + Send + Sync + 'static
     {
-        let option = self.extensions.get::<Service<T>>();
-        if let Some(extension) = option {
-            return Ok(extension);
-        } else {
-            return Err(ExtensionErrors::MissingExtension(format!("{:?}", std::any::type_name::<T>())));
-        }
+        let Service(data) = self.get::<Service<T>>()?;
+        Ok(data.clone())
     }
 
     pub fn get<T>(&self) -> Result<&T, ExtensionErrors>
@@ -46,17 +51,28 @@ impl System {
 }
 
 impl System {
-    pub async fn start<A>(&self)-> Result<<A as Actor>::State, InjectError>
+    pub async fn run_actor<A>(&mut self, actor_name: &String)-> Result<(), ActorRunningError>
         where A: Actor + Any,
-              <A as Actor>::State: Inject + Sized
+              <A as Actor>::State: Inject + Sized + Send
     {
-        Ok(A::State::inject(self).await)
+        if let Some(tx) = self.initialized_actors.remove(actor_name) {
+            let state = A::State::inject(self).await?;
+            if let Err(err) = tx.send(Box::new(state)) {
+                // throws Актор уже дропнут
+                todo!()
+            }
+        } else {
+            // throws Актор не был инициализирован или он уже был запущен
+            todo!()
+        }
+        Ok(())
     }
 
-    pub fn run<A, S>(&self, mut actor: A, actor_name: Option<String>, mut select: S) -> JoinHandle<()>
+    pub fn init_actor<A, S>(&mut self, mut actor: A, actor_name: Option<String>, mut select: S) -> JoinHandle<()>
         where
             A: Actor + Send,
-            S: ActorSelect<A> + Send + 'static
+            S: ActorSelect<A> + Send + 'static,
+            <A as Actor>::State: Inject + Sized + Send
     {
         let mut ctx: Context = self.create_context();
 
@@ -64,13 +80,30 @@ impl System {
 
         let actor_name= actor_name.unwrap_or_else(|| std::any::type_name::<A>().to_owned());
 
+        let (actor_state_tx, actor_state_rx) = oneshot::channel::<Box<dyn Any + Send>>();
+
+        self.initialized_actors.insert(actor_name.clone(), actor_state_tx);
+
         let handle = tokio::spawn(async move {
             tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, actor_name);
-            // actor.pre_start(&self).await.unwrap();
-            loop {
-                tracing::debug!("iteration of the process: {actor_name:?}");
-                let result = select.select(&mut ctx, &mut actor).await;
-                process_iteration_result(&actor_name, result);
+
+            if let Ok(boxed_state) = actor_state_rx.await {
+                let mut state = {
+                    let boxed_state = boxed_state.downcast::<<A as Actor>::State>()
+                        .expect("failed to downcast state");
+                    let state = *boxed_state;
+                    state
+                };
+
+                loop {
+                    tracing::debug!("iteration of the process: {actor_name:?}");
+                    let result = select.select(&mut state, &mut ctx, &mut actor).await;
+                    process_iteration_result(&actor_name, result);
+                }
+
+            } else {
+                // System dropped
+                ()
             }
         });
         handle
@@ -104,6 +137,7 @@ impl System {
 }
 
 pub mod builder {
+    use std::collections::HashMap;
     use std::sync::Arc;
     use crate::context::extensions::{Service, Extensions};
     use crate::system::System;
@@ -139,7 +173,7 @@ pub mod builder {
         }
 
         pub fn build(self) -> System {
-            System::new(self.name, Arc::new(self.extensions))
+            System::new(self.name, Arc::new(self.extensions), Default::default())
         }
     }
 }

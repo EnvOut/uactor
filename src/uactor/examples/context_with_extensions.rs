@@ -42,7 +42,7 @@ mod actor1 {
 
 
     impl Handler<PingMsg> for Actor1 {
-        async fn handle(&mut self, ping: PingMsg, ctx: &mut Context) -> HandleResult {
+        async fn handle(&mut self, state: &mut  Self::State, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor1: Received ping message");
 
             // let Extension(service1) = ctx.get_extension::<Service1>()?;
@@ -77,7 +77,7 @@ mod actor2 {
     }
 
     impl Handler<PingMsg> for Actor2 {
-        async fn handle(&mut self, ping: PingMsg, ctx: &mut Context) -> HandleResult {
+        async fn handle(&mut self, state: &mut  Self::State, ping: PingMsg, ctx: &mut Context) -> HandleResult {
             println!("actor2: Received ping message");
 
             // service2.do_something();

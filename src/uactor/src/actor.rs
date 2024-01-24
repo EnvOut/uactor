@@ -15,7 +15,7 @@ pub trait Actor: Sized + Unpin + 'static {
     /// Actor execution context type
     type Context: ActorContext + Send;
 
-    type State: Inject;
+    type State: Inject + Sized;
 
     async fn pre_start(
         &mut self,
@@ -140,7 +140,7 @@ pub trait Handler<M>
         M: Message,
 {
     /// This method is called for every message received by this actor.
-    fn handle(&mut self, msg: M, ctx: &mut Context) -> impl std::future::Future<Output = HandleResult> + Send;
+    fn handle(&mut self, state: &mut  Self::State, msg: M, ctx: &mut Context) -> impl std::future::Future<Output = HandleResult> + Send;
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;

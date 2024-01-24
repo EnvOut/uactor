@@ -30,7 +30,7 @@ pub mod extensions {
     // themselves, coming from the compiler. The IdHasher just holds the u64 of
     // the TypeId, and then returns it, instead of doing any bit fiddling.
     #[derive(Default)]
-    struct IdHasher(u64);
+    pub struct IdHasher(u64);
 
     impl Hasher for IdHasher {
         fn write(&mut self, _: &[u8]) {

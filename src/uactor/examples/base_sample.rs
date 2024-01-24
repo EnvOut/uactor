@@ -67,8 +67,9 @@ pub mod actor1 {
 }
 
 pub mod actor2 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, ActorPreStartResult, Handler, HandleResult};
     use uactor::context::Context;
+    use uactor::system::System;
     use crate::messages::RespMsg;
 
     pub struct Actor2;
@@ -81,7 +82,10 @@ pub mod actor2 {
         }
     }
 
-    impl Actor for Actor2 { type Context = Context; }
+    impl Actor for Actor2 {
+        type Context = Context;
+        type State = ();
+    }
 }
 
 #[tokio::main]
@@ -101,8 +105,8 @@ async fn main() {
     let system = System::global()
         .build();
 
-    let handle1 = system.run(actor1, None, (ping_rx, req_rx));
-    let handle2 = system.run(actor2, None, resp_rx);
+    let handle1 = system.init_actor(actor1, None, (ping_rx, req_rx));
+    let handle2 = system.init_actor(actor2, None, resp_rx);
 
     ping_tx.send(PingPongMsg::Ping).await.unwrap();
     req_tx.send(ReqMsg::GET).await.unwrap();

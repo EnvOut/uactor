@@ -5,8 +5,8 @@ use crate::datasource::DataSource;
 use crate::message::Message;
 
 
-pub trait ActorSelect<Z: Actor + Send> {
-    fn select(&mut self, ctx: &mut Context, actor: &mut Z) -> impl std::future::Future<Output = SelectResult> + Send;
+pub trait ActorSelect<A: Actor + Send> {
+    fn select(&mut self, state: &mut A::State, ctx: &mut Context, actor: &mut A) -> impl std::future::Future<Output = SelectResult> + Send;
 }
 
 pub type SelectResult = HandleResult;
@@ -24,13 +24,14 @@ mod select_from_tuple {
                     $($T::Item: Message + Send, )*
                     $($T: DataSource + Send, )*
                     A: $(Handler<$T::Item> + )* Send,
+                    <A as Actor>::State: Send
             {
-                async fn select(&mut self, ctx: &mut Context, actor: &mut A) -> SelectResult {
+                async fn select(&mut self, state: &mut A::State, ctx: &mut Context, actor: &mut A) -> SelectResult {
                     let ($($T, )*) = self;
                     tokio::select! {
                         $(
                         Ok(msg) = $T.next() => {
-                            let _ = actor.handle(msg, ctx).await?;
+                            let _ = actor.handle(state, msg, ctx).await?;
                         }
                         )*
                     }
@@ -41,8 +42,10 @@ mod select_from_tuple {
     }
 
 
-    impl<A: Actor + Send> ActorSelect<A> for () {
-        async fn select(&mut self, _: &mut Context, _: &mut A) -> SelectResult {
+    impl<A: Actor + Send> ActorSelect<A> for ()
+        where <A as Actor>::State: Send
+    {
+        async fn select(&mut self, _: &mut A::State, _: &mut Context, _: &mut A) -> SelectResult {
             pending::<SelectResult>().await
         }
     }
@@ -53,10 +56,11 @@ mod select_from_tuple {
             S1::Item: Message + Send,
             S1: DataSource + Send,
             A: Handler<S1::Item> + Send,
+            <A as Actor>::State: Send,
     {
-        async fn select(&mut self, ctx: &mut Context, actor: &mut A) -> SelectResult {
+        async fn select(&mut self, state: &mut A::State, ctx: &mut Context, actor: &mut A) -> SelectResult {
             if let Ok(msg) = self.next().await {
-                let _ = actor.handle(msg, ctx).await?;
+                let _ = actor.handle(state, msg, ctx).await?;
             }
             Ok(())
         }
