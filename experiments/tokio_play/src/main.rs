@@ -2,10 +2,10 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(unused_mut)]
+use futures::StreamExt;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
-use futures::StreamExt;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::watch;
@@ -26,8 +26,6 @@ async fn local() {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         println!("goodbye {}", nonsend_data)
     });
-
-
 
     util1.await;
     util2.await;
@@ -109,7 +107,6 @@ async fn local() {
 
 trait Message {}
 
-
 #[tokio::main]
 async fn main() {
     // use futures::FutureExt;
@@ -145,7 +142,6 @@ async fn main() {
     println!("value 1: {value:?}");
     let value = stream2.next().await.unwrap();
     println!("value 2: {value:?}");
-
 
     let (_, rx2) = watch::channel::<i32>(100500);
     // WatchStream::new()

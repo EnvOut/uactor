@@ -4,8 +4,7 @@
 #![allow(unused_mut)]
 use tokactor::{Actor, Ask, AskResult, Ctx};
 
-struct Router {
-}
+struct Router {}
 
 pub struct PingPong {
     counter: u8,
