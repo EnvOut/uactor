@@ -10,8 +10,12 @@ Examples can be found [here](src/uactor/examples).
 2. Minimum boilerplate code
 3. Support different tokio channels including `watch`, `broadcast`, `oneshot`, `mpsc`.
 4. Each actor is able to listen up to 30 channels.
-5. Added support of actors with single real channel and routing messages to the defined handler [example](src/uactor/examples/single_channel_actor.rs)
-6. [ ] Include `tick` (scheduler) inside ActorSelect
+5. Added support of actors with single real channel and routing messages to the defined handler  
+[Example: Single channel](src/uactor/examples/single_channel_actor.rs)
+6. Added tick (actor call each n seconds/millis/etc) support  
+[Example: Interval](src%2Fuactor%2Fexamples%2Finterval.rs)
+7. Implemented Dependency Injection on pre-start stage to solve cross-references problem ("Actor#1" needs a reference to the "Actor#2", and "Actor#2" needs a reference to "Actor#1")  
+[Example: dependency injection](src/uactor/examples/dependency_injection.rs)
 
 ### Other projects:
 1. Actix
