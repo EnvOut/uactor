@@ -5,10 +5,13 @@ use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
-use std::any::Any;
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+use crate::context::actor_registry::{ActorRegistry, ActorRegistryErrors};
+use crate::data_publisher::TryClone;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ActorRunningError {
@@ -25,6 +28,7 @@ pub struct System {
     name: String,
     extensions: Extensions,
     initialized_actors: HashMap<String, oneshot::Sender<Box<dyn Any + Send>>>,
+    actor_registry: ActorRegistry,
 }
 
 impl System {}
@@ -36,12 +40,35 @@ impl System {
 }
 
 impl System {
-    pub fn get_service<T>(&self) -> Result<T, ExtensionErrors>
+    pub fn get_service<T>(&self) -> Result<Service<T>, ExtensionErrors>
         where
             T: Clone + Send + Sync + 'static,
     {
-        let Service(data) = self.get::<Service<T>>()?;
-        Ok(data.clone())
+        let service = self.get::<Service<T>>()?;
+        Ok(service.clone())
+    }
+
+    pub fn get_actor<A>(&self, actor_name: Arc<str>) -> Result<A, ActorRegistryErrors>
+        where
+            A: TryClone + Send + Sync + 'static,
+    {
+        let actor_ref: &A = self.actor_registry.get_actor::<A>(actor_name.clone())
+            .ok_or_else(|| {
+                let system_name = self.name.clone();
+                let kind = utils::type_name::<A>();
+                let actor_name = actor_name.clone();
+                ActorRegistryErrors::NotRegisteredActor { system_name, kind, actor_name }
+            })?;
+        let a = actor_ref.try_clone()?;
+        Ok(a)
+    }
+
+    pub fn insert_actor<T: Send + Sync + TryClone + 'static>(&mut self, actor_name: Arc<str>, actor_ref: T) {
+        self.actor_registry.insert::<T>(actor_name, actor_ref);
+    }
+
+    pub fn insert_service<T: Send + Sync + 'static>(&mut self, data: T) {
+        self.extensions.insert(Service(data));
     }
 
     pub fn get<T>(&self) -> Result<&T, ExtensionErrors>
@@ -89,12 +116,7 @@ impl System {
         let system_name = self.name.clone();
 
         let actor_name = actor_name.unwrap_or_else(|| {
-            let type_full_name = std::any::type_name::<A>();
-            let type_name = type_full_name
-                .split("::")
-                .last()
-                .unwrap_or(type_full_name)
-                .to_owned();
+            let type_name = utils::type_name::<A>();
             format!("{}-{}", type_name, (&type_name as *const String as i32))
         });
         let (actor_state_tx, actor_state_rx) = oneshot::channel::<Box<dyn Any + Send>>();
@@ -166,7 +188,20 @@ pub mod builder {
         }
 
         pub fn build(self) -> System {
-            System::new(self.name, self.extensions, Default::default())
+            System::new(self.name, self.extensions, Default::default(), Default::default())
         }
+    }
+}
+
+
+mod utils {
+    pub fn type_name<T>() -> String {
+        let type_full_name = std::any::type_name::<T>();
+        let type_name = type_full_name
+            .split("::")
+            .last()
+            .unwrap_or(type_full_name)
+            .to_owned();
+        type_name
     }
 }

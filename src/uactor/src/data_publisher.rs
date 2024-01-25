@@ -21,6 +21,14 @@ mod async_sender {
         fn try_clone(&self) -> Result<Self, TryCloneError>;
     }
 
+    impl<T: ?Sized> TryClone for &T {
+        #[inline(always)]
+        #[rustc_diagnostic_item = "noop_method_clone"]
+        fn try_clone(&self) -> Result<Self, TryCloneError> {
+            Ok(*self)
+        }
+    }
+
     #[derive(thiserror::Error, Debug)]
     pub enum TryCloneError {
         #[error("Can't be cloned")]

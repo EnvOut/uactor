@@ -1,3 +1,4 @@
+use crate::context::actor_registry::ActorRegistryErrors;
 use crate::context::extensions::ExtensionErrors;
 use crate::system::System;
 
@@ -5,6 +6,8 @@ use crate::system::System;
 pub enum InjectError {
     #[error(transparent)]
     ExtensionErrors(#[from] ExtensionErrors),
+    #[error(transparent)]
+    ActorRegistryErrors(#[from] ActorRegistryErrors),
 }
 
 /// Sample:

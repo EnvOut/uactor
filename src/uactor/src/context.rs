@@ -10,6 +10,8 @@ pub mod extensions {
     use std::collections::HashMap;
     use std::fmt;
     use std::hash::{BuildHasherDefault, Hasher};
+    use std::ops::{Deref, DerefMut};
+    use crate::data_publisher::{TryClone, TryCloneError};
 
     type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
 
@@ -238,9 +240,121 @@ pub mod extensions {
     #[must_use]
     pub struct Service<T>(pub T);
 
+    impl<T> DerefMut for Service<T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
+        }
+    }
+
+    impl<T> Deref for Service<T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
     #[derive(thiserror::Error, Debug)]
     pub enum ExtensionErrors {
         #[error("Type {kind:?} is not registered within system context {system_name:?}")]
         NotRegisteredType { kind: String, system_name: String },
+    }
+}
+
+pub mod actor_registry {
+    use std::any::{Any, TypeId};
+    use std::collections::HashMap;
+    use std::fmt;
+    use std::hash::{BuildHasherDefault, Hasher};
+    use std::ops::{Deref, DerefMut};
+    use std::sync::Arc;
+    use crate::data_publisher::{TryClone, TryCloneError};
+
+    #[derive(Default)]
+    pub struct ActorRegistry {
+        inner: HashMap<TypeId, HashMap<Arc<str>, Box<dyn Any + Send + Sync>>, BuildHasherDefault<crate::context::extensions::IdHasher>>,
+    }
+
+    impl ActorRegistry {
+        /// Create an empty `ActorRegistry`.
+        #[inline]
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        // TODO: docs
+        pub fn insert<T: Send + Sync + 'static>(&mut self, actor_name: Arc<str>, val: T) -> Option<T> {
+            let entry = self.inner.entry(TypeId::of::<T>()).or_default();
+            entry.insert(actor_name, Box::new(val))
+                .and_then(|boxed| {
+                    (boxed as Box<dyn Any + 'static>)
+                        .downcast()
+                        .ok()
+                        .map(|boxed| *boxed)
+                })
+        }
+
+        // TODO: docs
+        pub fn get_all<T: Send + Sync + 'static>(&self) -> Option<Vec<&T>> {
+            self.inner.get(&TypeId::of::<T>())?
+                .values()
+                .map(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
+                .collect::<Option<Vec<&T>>>()
+        }
+
+        // TODO: docs
+        pub fn get_actor<T: Send + Sync + 'static>(&self, actor_name: Arc<str>) -> Option<&T> {
+            let boxed_actor_ref = self.inner
+                .get(&TypeId::of::<T>())?
+                .get(&actor_name)?;
+            (&**boxed_actor_ref as &(dyn Any + 'static)).downcast_ref()
+        }
+
+        // TODO: docs
+        pub fn remove<T: Send + Sync + 'static>(&mut self, actor_name: Arc<str>) -> Option<()> {
+            self.inner
+                .get_mut(&TypeId::of::<T>())?
+                .remove(&actor_name)?;
+            Some(())
+        }
+    }
+
+    impl fmt::Debug for ActorRegistry {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("ActorRegistry").finish()
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, Default)]
+    #[must_use]
+    pub struct ActorRef<T>(pub T) where T: TryClone;
+
+    impl<T: TryClone> TryClone for ActorRef<T> {
+        fn try_clone(&self) -> Result<Self, TryCloneError> {
+            Ok(ActorRef(self.0.try_clone()?))
+        }
+    }
+
+    impl<T: TryClone> DerefMut for ActorRef<T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
+        }
+    }
+
+    impl<T: TryClone> Deref for ActorRef<T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    #[derive(thiserror::Error, Debug)]
+    pub enum ActorRegistryErrors {
+        #[error("Type {kind:?} is not registered within system context {system_name:?}")]
+        NotRegisteredActor { system_name: String, kind: String, actor_name: Arc<str> },
+
+        #[error(transparent)]
+        TryCloneError(#[from] TryCloneError),
     }
 }
