@@ -30,7 +30,6 @@ mod messages {
 }
 
 mod actor1 {
-    use std::ops::Deref;
     use tokio::sync::mpsc::UnboundedSender;
     use crate::messages::{PingMsg, MessageWithoutReply, PongMsg, PrintMessage};
     use crate::services::Service1;
@@ -39,7 +38,7 @@ mod actor1 {
     use uactor::context::extensions::Service;
     use uactor::di::{Inject, InjectError};
     use uactor::system::System;
-    use crate::actor2::{Actor2, Actor2Msg, Actor2Ref};
+    use crate::actor2::{Actor2Msg, Actor2Ref};
 
     pub struct Actor1;
 
