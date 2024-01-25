@@ -104,8 +104,8 @@ async fn main() {
     let (actor1_name, handle1) = system.init_actor(actor1, None, (ping_rx, req_rx));
     let (actor2_name, handle2) = system.init_actor(actor2, None, resp_rx);
 
-    system.run_actor::<Actor1>(&actor1_name).await.unwrap();
-    system.run_actor::<Actor2>(&actor2_name).await.unwrap();
+    system.run_actor::<Actor1>(actor1_name).await.unwrap();
+    system.run_actor::<Actor2>(actor2_name).await.unwrap();
 
     ping_tx.send(PingPongMsg::Ping).await.unwrap();
     req_tx.send(ReqMsg::GET).await.unwrap();

@@ -11,7 +11,6 @@ pub mod extensions {
     use std::fmt;
     use std::hash::{BuildHasherDefault, Hasher};
     use std::ops::{Deref, DerefMut};
-    use crate::data_publisher::{TryClone, TryCloneError};
 
     type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
 
@@ -265,7 +264,7 @@ pub mod actor_registry {
     use std::any::{Any, TypeId};
     use std::collections::HashMap;
     use std::fmt;
-    use std::hash::{BuildHasherDefault, Hasher};
+    use std::hash::BuildHasherDefault;
     use std::ops::{Deref, DerefMut};
     use std::sync::Arc;
     use crate::data_publisher::{TryClone, TryCloneError};

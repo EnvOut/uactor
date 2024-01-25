@@ -1,4 +1,6 @@
 use time::ext::NumericalStdDuration;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 use crate::actor1::Actor1;
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
@@ -184,8 +186,8 @@ async fn main() -> anyhow::Result<()> {
     let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
 
     // Run actors
-    system.run_actor::<Actor1>(actor1_ref.name()).await;
-    system.run_actor::<Actor2>(actor2_ref.name()).await;
+    system.run_actor::<Actor1>(actor1_ref.name()).await?;
+    system.run_actor::<Actor2>(actor2_ref.name()).await?;
 
     // Case #1: send messages and call injected (not from &self) services inside handlers
     println!("-- Case #1: send messages and call injected (not from &self) services inside handlers");

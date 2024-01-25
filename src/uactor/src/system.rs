@@ -5,7 +5,7 @@ use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -16,9 +16,9 @@ use crate::data_publisher::TryClone;
 #[derive(thiserror::Error, Debug)]
 pub enum ActorRunningError {
     #[error("The actor: {0:?} has dropped")]
-    Dropped(String),
+    Dropped(Arc<str>),
     #[error("The actor: {0:?} has not been initialized or has already been started")]
-    MissedInitializationOrAlreadyStarted(String),
+    MissedInitializationOrAlreadyStarted(Arc<str>),
     #[error(transparent)]
     InjectError(#[from] InjectError),
 }
@@ -27,7 +27,7 @@ pub enum ActorRunningError {
 pub struct System {
     name: String,
     extensions: Extensions,
-    initialized_actors: HashMap<String, oneshot::Sender<Box<dyn Any + Send>>>,
+    initialized_actors: HashMap<Arc<str>, oneshot::Sender<Box<dyn Any + Send>>>,
     actor_registry: ActorRegistry,
 }
 
@@ -36,6 +36,9 @@ impl System {}
 impl System {
     pub fn global() -> SystemBuilder {
         SystemBuilder::new_global()
+    }
+    pub fn name(system_name: String) -> SystemBuilder {
+        SystemBuilder::new(system_name, Extensions::new())
     }
 }
 
@@ -89,23 +92,23 @@ impl System {
 }
 
 impl System {
-    pub async fn run_actor<A>(&mut self, actor_name: &str) -> Result<(), ActorRunningError>
+    pub async fn run_actor<A>(&mut self, actor_name: Arc<str>) -> Result<(), ActorRunningError>
         where
             A: Actor + Any,
             <A as Actor>::Inject: Inject + Sized + Send,
     {
-        if let Some(tx) = self.initialized_actors.remove(actor_name) {
+        if let Some(tx) = self.initialized_actors.remove(&actor_name) {
             let state = A::Inject::inject(self).await?;
             if tx.send(Box::new(state)).is_err() {
-                return Err(ActorRunningError::Dropped(actor_name.to_owned()));
+                return Err(ActorRunningError::Dropped(actor_name.clone()));
             }
         } else {
-            return Err(ActorRunningError::MissedInitializationOrAlreadyStarted(actor_name.to_owned()))
+            return Err(ActorRunningError::MissedInitializationOrAlreadyStarted(actor_name.clone()))
         }
         Ok(())
     }
 
-    pub fn init_actor<A, S>(&mut self, mut actor: A, actor_name: Option<String>, mut select: S) -> (String, JoinHandle<()>)
+    pub fn init_actor<A, S>(&mut self, mut actor: A, actor_name: Option<Arc<str>>, mut select: S) -> (Arc<str>, JoinHandle<()>)
         where
             A: Actor + Send,
             S: ActorSelect<A> + Send + 'static,
@@ -115,9 +118,9 @@ impl System {
 
         let system_name = self.name.clone();
 
-        let actor_name = actor_name.unwrap_or_else(|| {
+        let actor_name: Arc<str> = actor_name.unwrap_or_else(|| {
             let type_name = utils::type_name::<A>();
-            format!("{}-{}", type_name, (&type_name as *const String as i32))
+            format!("{}-{}", type_name, (&type_name as *const String as i32)).into()
         });
         let (actor_state_tx, actor_state_rx) = oneshot::channel::<Box<dyn Any + Send>>();
 
@@ -159,6 +162,7 @@ pub mod builder {
 
     const GLOBAL_SYSTEM_NAME: &str = "Global";
 
+    #[derive(derive_more::Constructor)]
     pub struct SystemBuilder {
         name: String,
         extensions: Extensions,

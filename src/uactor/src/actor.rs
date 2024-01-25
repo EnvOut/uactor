@@ -29,25 +29,46 @@ pub trait Actor: Sized + Unpin + 'static {
 }
 #[macro_export]
 macro_rules! spawn_with_ref {
+    ($S: ident, $ActorName: ident, $ActorInstance: ident: $ActorType: ident, $($Timeout: ident),*) => {{
+        uactor::paste! {
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
+            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some($ActorName.to_owned()), ($($Timeout,)* rx));
+            let actor_ref = [<$ActorType Ref>]::new(name, tx);
+            $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
+            (actor_ref, handle)
+        }
+    }};
+
     ($S: ident, $ActorInstance: ident: $ActorType: ident, $($Timeout: ident),*) => {{
-        let actor_name: String = stringify!($ActorInstance).to_owned();
+        let actor_name: std::sync::Arc<str> = stringify!($ActorInstance).into();
 
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let (name, handle): (String, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), ($($Timeout,)* rx));
+            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), ($($Timeout,)* rx));
             let actor_ref = [<$ActorType Ref>]::new(name, tx);
-            $S.insert_actor(actor_ref.name().into(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
+            $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
+            (actor_ref, handle)
+        }
+    }};
+
+    ($S: ident, $ActorName: ident, $ActorInstance: ident: $ActorType: ident) => {{
+        let actor_name: std::sync::Arc<str> = stringify!($ActorInstance).into();
+        uactor::paste! {
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
+            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), (rx));
+            let actor_ref = [<$ActorType Ref>]::new(name, tx);
+            $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
             (actor_ref, handle)
         }
     }};
 
     ($S: ident, $ActorInstance: ident: $ActorType: ident) => {{
-        let actor_name: String = stringify!($ActorInstance).to_owned();
+        let actor_name: std::sync::Arc<str> = stringify!($ActorInstance).into();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let (name, handle): (String, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), (rx));
+            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), (rx));
             let actor_ref = [<$ActorType Ref>]::new(name, tx);
-            $S.insert_actor(actor_ref.name().into(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
+            $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
             (actor_ref, handle)
         }
     }};
@@ -98,13 +119,13 @@ macro_rules! generate_actor_ref {
             }
 
             impl<T> [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
-                pub fn new(name: String, sender: T) -> Self {
+                pub fn new(name: std::sync::Arc<str>, sender: T) -> Self {
                     let name = std::sync::Arc::from(name);
                     Self { name, sender }
                 }
 
-                pub fn name(&self) -> &str {
-                    self.name.as_ref()
+                pub fn name(&self) -> std::sync::Arc<str> {
+                    self.name.clone()
                 }
 
                 $(
