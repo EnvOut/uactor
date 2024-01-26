@@ -1,6 +1,9 @@
 use time::ext::NumericalStdDuration;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+
+use uactor::system::System;
+
 use crate::actor1::Actor1;
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
@@ -9,10 +12,10 @@ use crate::actor2::Actor2Msg;
 use crate::actor2::Actor2Ref;
 use crate::messages::{MessageWithoutReply, PingMsg, PongMsg};
 use crate::services::{Service1, Service2};
-use uactor::system::System;
 
 mod messages {
     use tokio::sync::oneshot::Sender;
+
     use uactor::message::Message;
 
     pub struct PingMsg(pub Sender<PongMsg>);
@@ -31,19 +34,21 @@ mod messages {
 
 mod actor1 {
     use tokio::sync::mpsc::UnboundedSender;
-    use crate::messages::{PingMsg, MessageWithoutReply, PongMsg, PrintMessage};
-    use crate::services::Service1;
-    use uactor::actor::{Actor, HandleResult, Handler};
+
+    use uactor::actor::{Actor, Handler, HandleResult};
     use uactor::context::Context;
     use uactor::context::extensions::Service;
     use uactor::di::{Inject, InjectError};
     use uactor::system::System;
+
     use crate::actor2::{Actor2Msg, Actor2Ref};
+    use crate::messages::{MessageWithoutReply, PingMsg, PongMsg, PrintMessage};
+    use crate::services::Service1;
 
     pub struct Actor1;
 
     #[derive(derive_more::Constructor)]
-    pub struct Services{
+    pub struct Services {
         service1: Service<Service1>,
         actor2_ref: Actor2Ref<UnboundedSender<Actor2Msg>>,
     }
@@ -88,13 +93,14 @@ mod actor1 {
 }
 
 mod actor2 {
-    use crate::messages::{PingMsg, PongMsg, PrintMessage};
-    use crate::services::Service2;
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::extensions::Service;
+    use uactor::actor::{Actor, Handler, HandleResult};
     use uactor::context::Context;
+    use uactor::context::extensions::Service;
     use uactor::di::{Inject, InjectError};
     use uactor::system::System;
+
+    use crate::messages::{PingMsg, PongMsg, PrintMessage};
+    use crate::services::Service2;
 
     pub struct Actor2;
 

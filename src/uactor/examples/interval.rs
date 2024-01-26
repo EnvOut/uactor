@@ -1,16 +1,20 @@
+use anyhow::Context;
+use time::ext::NumericalStdDuration;
+
+use uactor::system::System;
+
 use crate::actor1::Actor1;
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
 use crate::messages::{PingMsg, PongMsg};
-use anyhow::Context;
-use time::ext::NumericalStdDuration;
-use uactor::system::System;
 
 mod messages {
     use tokio::sync::oneshot::Sender;
+
     use uactor::message::Message;
 
     pub struct PingMsg(pub Sender<PongMsg>);
+
     #[derive(Debug)]
     pub struct PongMsg;
 
@@ -18,10 +22,11 @@ mod messages {
 }
 
 mod actor1 {
-    use crate::messages::{PingMsg, PongMsg};
-    use uactor::actor::{Actor, HandleResult, Handler};
+    use uactor::actor::{Actor, Handler, HandleResult};
     use uactor::context::Context;
     use uactor::message::IntervalMessage;
+
+    use crate::messages::{PingMsg, PongMsg};
 
     #[derive(Default)]
     pub struct Actor1 {
