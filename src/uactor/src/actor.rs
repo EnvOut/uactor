@@ -118,6 +118,12 @@ macro_rules! generate_actor_ref {
                 }
             }
 
+            impl Clone for [<$ActorType Ref>]<tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>> {
+                fn clone(&self) -> Self {
+                    [<$ActorType Ref>]::new(self.name.clone(), self.sender.clone())
+                }
+            }
+
             impl<T> [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
                 pub fn new(name: std::sync::Arc<str>, sender: T) -> Self {
                     let name = std::sync::Arc::from(name);
