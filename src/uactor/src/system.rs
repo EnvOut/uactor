@@ -74,6 +74,10 @@ impl System {
         self.extensions.insert(Service(data));
     }
 
+    pub fn insert<T: Send + Sync + 'static>(&mut self, data: T) {
+        self.extensions.insert(data);
+    }
+
     pub fn get<T>(&self) -> Result<&T, ExtensionErrors>
         where
             T: Clone + Send + Sync + 'static,
