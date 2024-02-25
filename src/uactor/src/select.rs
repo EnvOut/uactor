@@ -5,7 +5,7 @@ use crate::message::Message;
 use std::future::pending;
 
 pub trait ActorSelect<A: Actor + Send> {
-    fn select(&mut self, inject: &mut A::Inject, ctx: &mut Context, actor: &mut A) -> impl std::future::Future<Output = SelectResult> + Send;
+    fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> impl std::future::Future<Output = SelectResult> + Send;
 }
 
 pub type SelectResult = HandleResult;
@@ -25,7 +25,7 @@ mod select_from_tuple {
                     A: $(Handler<$T::Item> + )* Send,
                     <A as Actor>::Inject: Send
             {
-                async fn select(&mut self, inject: &mut A::Inject, ctx: &mut Context, actor: &mut A) -> SelectResult {
+                async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
                     let ($($T, )*) = self;
                     tokio::select! {
                         $(
@@ -44,7 +44,7 @@ mod select_from_tuple {
         where
             <A as Actor>::Inject: Send,
     {
-        async fn select(&mut self, _: &mut A::Inject, _: &mut Context, _: &mut A) -> SelectResult {
+        async fn select(&mut self, _: &mut A::Inject, _: &mut <A as Actor>::Context, _: &mut A) -> SelectResult {
             pending::<SelectResult>().await
         }
     }
@@ -56,7 +56,7 @@ mod select_from_tuple {
             A: Handler<S1::Item> + Send,
             <A as Actor>::Inject: Send,
     {
-        async fn select(&mut self, inject: &mut A::Inject, ctx: &mut Context, actor: &mut A) -> SelectResult {
+        async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
             if let Ok(msg) = self.next().await {
                 let _ = actor.handle(inject, msg, ctx).await?;
             }

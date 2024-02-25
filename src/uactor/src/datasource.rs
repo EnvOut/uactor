@@ -11,6 +11,9 @@ pub enum DataSourceErrors {
 
     #[error("Channel lagged by {0}")]
     ChannelLagged(u64),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
 }
 
 impl From<broadcast::error::RecvError> for DataSourceErrors {

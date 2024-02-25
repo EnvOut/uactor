@@ -1,6 +1,6 @@
 use crate::actor::Actor;
 use crate::context::extensions::{ExtensionErrors, Extensions, Service};
-use crate::context::Context;
+use crate::context::{ActorContext, Context, ContextInitializationError};
 use crate::di::{Inject, InjectError};
 use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
@@ -8,10 +8,11 @@ use crate::system::builder::SystemBuilder;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
+use futures::StreamExt;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use crate::context::actor_registry::{ActorRegistry, ActorRegistryErrors};
-use crate::data_publisher::TryClone;
+use crate::data_publisher::{TryClone, TryCloneError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ActorRunningError {
@@ -21,11 +22,13 @@ pub enum ActorRunningError {
     MissedInitializationOrAlreadyStarted(Arc<str>),
     #[error(transparent)]
     InjectError(#[from] InjectError),
+    #[error("Can't create actor context: {0:?}")]
+    ContextError(String),
 }
 
 #[derive(derive_more::Constructor)]
 pub struct System {
-    name: String,
+    name: Arc<str>,
     extensions: Extensions,
     initialized_actors: HashMap<Arc<str>, oneshot::Sender<Box<dyn Any + Send>>>,
     actor_registry: ActorRegistry,
@@ -66,6 +69,21 @@ impl System {
         Ok(a)
     }
 
+    pub fn get_actors<A>(&self) -> Result<Vec<A>, ActorRegistryErrors>
+        where
+            A: TryClone + Send + Sync + 'static,
+    {
+        let actor_ref = self.actor_registry.get_all()
+            .ok_or_else(|| {
+                let system_name = self.name.clone();
+                let kind = utils::type_name::<A>();
+                ActorRegistryErrors::NotRegisteredActorKind { system_name, kind }
+            })?.into_iter()
+            .map(|i: &A| i.try_clone())
+            .collect::<Result<Vec<A>, TryCloneError>>()?;
+        Ok(actor_ref)
+    }
+
     pub fn insert_actor<T: Send + Sync + TryClone + 'static>(&mut self, actor_name: Arc<str>, actor_ref: T) {
         self.actor_registry.insert::<T>(actor_name, actor_ref);
     }
@@ -103,15 +121,19 @@ impl System {
     {
         if let Some(tx) = self.initialized_actors.remove(&actor_name) {
             let state_res = A::Inject::inject(self).await;
+
+            let ctx = A::Context::create(self).await.map_err(|err|ActorRunningError::ContextError(err))?;
+
             if let Err(err) = state_res.as_ref() {
                 tracing::error!("Can't inject dependencies for {actor_name:?}, actor not started. Err: {err:?}")
             }
             let state = state_res?;
 
-            if tx.send(Box::new(state)).is_err() {
+            if tx.send(Box::new((state, ctx))).is_err() {
                 return Err(ActorRunningError::Dropped(actor_name.clone()));
             }
         } else {
+            eprintln!("actor_name: {:?} already started", actor_name);
             return Err(ActorRunningError::MissedInitializationOrAlreadyStarted(actor_name.clone()))
         }
         Ok(())
@@ -121,10 +143,8 @@ impl System {
         where
             A: Actor + Send,
             S: ActorSelect<A> + Send + 'static,
-            <A as Actor>::Inject: Inject + Sized + Send
+            <A as Actor>::Inject: Inject + Sized + Send,
     {
-        let mut ctx: Context = self.create_context();
-
         let system_name = self.name.clone();
 
         let actor_name: Arc<str> = actor_name.unwrap_or_else(|| {
@@ -140,15 +160,15 @@ impl System {
             tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, name);
 
             if let Ok(boxed_state) = actor_state_rx.await {
-                let mut state = {
+                let  (mut state, mut ctx) = {
                     let boxed_state = boxed_state
-                        .downcast::<<A as Actor>::Inject>()
+                        .downcast::<(<A as Actor>::Inject, <A as Actor>::Context)>()
                         .expect("failed to downcast state");
                     *boxed_state
                 };
 
                 loop {
-                    tracing::debug!("iteration of the process: {name:?}");
+                    tracing::trace!("iteration of the process: {name:?}");
                     let result = select.select(&mut state, &mut ctx, &mut actor).await;
                     process_iteration_result(&name, result);
                 }
@@ -159,13 +179,10 @@ impl System {
         });
         (actor_name, handle)
     }
-
-    pub fn create_context(&self) -> Context {
-        Context::new()
-    }
 }
 
 pub mod builder {
+    use std::sync::Arc;
     use crate::context::extensions::{Extensions, Service};
     use crate::system::System;
 
@@ -201,13 +218,13 @@ pub mod builder {
         }
 
         pub fn build(self) -> System {
-            System::new(self.name, self.extensions, Default::default(), Default::default())
+            System::new(Arc::from(self.name.as_str()), self.extensions, Default::default(), Default::default())
         }
     }
 }
 
 
-mod utils {
+pub mod utils {
     pub fn type_name<T>() -> String {
         let type_full_name = std::any::type_name::<T>();
         let type_name = type_full_name

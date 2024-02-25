@@ -21,11 +21,6 @@ pub trait Actor: Sized + Unpin + 'static {
     ) -> ActorPreStartResult<()> {
         Ok(())
     }
-
-    fn default_context() -> Self::Context {
-        let ctx: Self::Context = Default::default();
-        ctx
-    }
 }
 #[macro_export]
 macro_rules! spawn_with_ref {
@@ -181,7 +176,7 @@ where
     M: Message,
 {
     /// This method is called for every message received by this actor.
-    fn handle(&mut self, inject: &mut Self::Inject, msg: M, ctx: &mut Context) -> impl std::future::Future<Output = HandleResult> + Send;
+    fn handle(&mut self, inject: &mut Self::Inject, msg: M, ctx: &mut Self::Context) -> impl std::future::Future<Output = HandleResult> + Send;
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;

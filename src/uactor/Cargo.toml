@@ -17,6 +17,7 @@ tracing = { workspace = true }
 paste = "1.0"
 derive_more = { workspace = true }
 bytes = { version = "1", optional = true }
+rand = "0.8"
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3" }

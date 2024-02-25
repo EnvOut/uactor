@@ -1,9 +1,43 @@
-pub trait ActorContext: Default + Sized + Unpin + 'static {}
+use crate::data_publisher::DataPublisher;
+use crate::system::System;
 
-#[derive(derive_more::Constructor, Default)]
-pub struct Context {}
+pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
+pub type ContextInitializationError<T> = Result<T, String>;
 
-impl ActorContext for Context {}
+pub trait ActorContext: Sized + Unpin + 'static {
+    async fn on_start(&mut self) -> ContextResult<()>;
+    async fn on_die(&mut self) -> ContextResult<()>;
+    async fn on_iteration(&mut self) -> ContextResult<()>;
+    async fn kill(&mut self);
+    async fn create(system: &mut System) -> ContextInitializationError<Self>;
+}
+
+#[derive(derive_more::Constructor)]
+pub struct Context {
+    pub killed: bool,
+}
+
+impl ActorContext for Context {
+    async fn on_start(&mut self) -> ContextResult<()> { Ok(()) }
+
+    async fn on_die(&mut self) -> ContextResult<()> { Ok(()) }
+
+    async fn on_iteration(&mut self) -> ContextResult<()> { Ok(()) }
+
+    async fn kill(&mut self) { self.killed = true; }
+
+    async fn create(_: &mut System) -> ContextInitializationError<Self> {
+        Ok(Context { killed: false })
+    }
+}
+
+#[derive(derive_more::Constructor)]
+pub struct SupervisedContext<T: DataPublisher> {
+    pub killed: bool,
+    id: u32,
+    supervisor: T,
+}
+
 
 pub mod extensions {
     use std::any::{Any, TypeId};
@@ -11,6 +45,7 @@ pub mod extensions {
     use std::fmt;
     use std::hash::{BuildHasherDefault, Hasher};
     use std::ops::{Deref, DerefMut};
+    use std::sync::Arc;
 
     type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
 
@@ -256,7 +291,7 @@ pub mod extensions {
     #[derive(thiserror::Error, Debug)]
     pub enum ExtensionErrors {
         #[error("Type {kind:?} is not registered within system context {system_name:?}")]
-        NotRegisteredType { kind: String, system_name: String },
+        NotRegisteredType { kind: String, system_name: Arc<str> },
     }
 }
 
@@ -350,8 +385,14 @@ pub mod actor_registry {
 
     #[derive(thiserror::Error, Debug)]
     pub enum ActorRegistryErrors {
+        #[error("Type {kind:?} with name: {actor_name:?} is not registered within system context {system_name:?}")]
+        NotRegisteredActor { system_name: Arc<str>, kind: String, actor_name: Arc<str> },
+
         #[error("Type {kind:?} is not registered within system context {system_name:?}")]
-        NotRegisteredActor { system_name: String, kind: String, actor_name: Arc<str> },
+        NotRegisteredActorKind { system_name: Arc<str>, kind: String },
+
+        #[error("Can't downcast registered actor into: {kind:?}, system: {system_name:?}")]
+        CantDowncast { system_name: Arc<str>, kind: String },
 
         #[error(transparent)]
         TryCloneError(#[from] TryCloneError),
