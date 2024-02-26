@@ -1,6 +1,7 @@
 use time::ext::NumericalStdDuration;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+use uactor::actor::MessageSender;
 
 use uactor::system::System;
 
@@ -35,7 +36,7 @@ mod messages {
 mod actor1 {
     use tokio::sync::mpsc::UnboundedSender;
 
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, Handler, HandleResult, MessageSender};
     use uactor::context::Context;
     use uactor::context::extensions::Service;
     use uactor::di::{Inject, InjectError};
@@ -84,7 +85,7 @@ mod actor1 {
     impl Handler<MessageWithoutReply> for Actor1 {
         async fn handle(&mut self, Services { actor2_ref, .. }: &mut Self::Inject, msg: MessageWithoutReply, ctx: &mut Context) -> HandleResult {
             println!("actor1: Received {msg:?} message, sending PrintMessage to the actor2");
-            actor2_ref.send_print_message(PrintMessage::new(msg.into()))?;
+            actor2_ref.send(PrintMessage::new(msg.into()))?;
             Ok(())
         }
     }
@@ -197,17 +198,17 @@ async fn main() -> anyhow::Result<()> {
     // Case #1: send messages and call injected (not from &self) services inside handlers
     println!("-- Case #1: send messages and call injected (not from &self) services inside handlers");
     let pong1 = actor1_ref
-        .ask_ping_msg::<PongMsg>(|reply| PingMsg(reply))
+        .ask::<PongMsg>(|reply| PingMsg(reply))
         .await?;
     let pong2 = actor2_ref
-        .ask_ping_msg::<PongMsg>(|reply| PingMsg(reply))
+        .ask::<PongMsg>(|reply| PingMsg(reply))
         .await?;
     println!("main: received {pong1:?} and {pong2:?} messages");
 
     // Case #2: send message#1 to actor1 and reply to actor2 without actor2 reference inside message#1
     println!("\n-- Case #2: send message#1 to actor1 and reply to actor2 without actor2 reference inside message#1");
     let pong1 = actor1_ref
-        .send_message_without_reply(MessageWithoutReply("login:password".to_owned()))?;
+        .send(MessageWithoutReply("login:password".to_owned()))?;
 
     tokio::time::sleep(1.std_milliseconds()).await;
     Ok(())

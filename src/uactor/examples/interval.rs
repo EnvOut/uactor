@@ -1,5 +1,6 @@
 use anyhow::Context;
 use time::ext::NumericalStdDuration;
+use uactor::actor::MessageSender;
 
 use uactor::system::System;
 
@@ -72,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
 
     let pong = actor1_ref
-        .ask_ping_msg::<PongMsg>(|reply| PingMsg(reply))
+        .ask::<PongMsg>(|reply| PingMsg(reply))
         .await?;
     println!("main: received {pong:?} message");
 

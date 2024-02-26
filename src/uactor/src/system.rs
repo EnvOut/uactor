@@ -2,7 +2,6 @@ use crate::actor::Actor;
 use crate::context::extensions::{ExtensionErrors, Extensions, Service};
 use crate::context::{ActorContext, Context, ContextInitializationError};
 use crate::di::{Inject, InjectError};
-use crate::errors::process_iteration_result;
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
 use std::any::Any;
@@ -169,8 +168,13 @@ impl System {
 
                 loop {
                     tracing::trace!("iteration of the process: {name:?}");
-                    let result = select.select(&mut state, &mut ctx, &mut actor).await;
-                    process_iteration_result(&name, result);
+                    let res = select.select(&mut state, &mut ctx, &mut actor).await;
+
+                    if let Err(err) = res {
+                        tracing::error!("Error during process iteration: {}", err);
+                    } else {
+                        tracing::trace!("{name:?} successful iteration");
+                    }
                 }
             } else {
                 tracing::error!("Can't run {name:?}, system dropped");
