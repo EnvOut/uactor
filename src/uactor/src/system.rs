@@ -1,6 +1,6 @@
 use crate::actor::Actor;
 use crate::context::extensions::{ExtensionErrors, Extensions, Service};
-use crate::context::{ActorContext, Context, ContextInitializationError};
+use crate::context::{ActorContext, Context, ContextInitializationError, ContextResult};
 use crate::di::{Inject, InjectError};
 use crate::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
@@ -21,7 +21,7 @@ pub enum ActorRunningError {
     MissedInitializationOrAlreadyStarted(Arc<str>),
     #[error(transparent)]
     InjectError(#[from] InjectError),
-    #[error("Can't create actor context: {0:?}")]
+    #[error("Can't create actor context: {0}")]
     ContextError(String),
 }
 
@@ -75,7 +75,7 @@ impl System {
         let actor_ref = self.actor_registry.get_all()
             .ok_or_else(|| {
                 let system_name = self.name.clone();
-                let kind = utils::type_name::<A>();
+                let kind = std::any::type_name::<A>().to_owned();
                 ActorRegistryErrors::NotRegisteredActorKind { system_name, kind }
             })?.into_iter()
             .map(|i: &A| i.try_clone())
@@ -84,6 +84,7 @@ impl System {
     }
 
     pub fn insert_actor<T: Send + Sync + TryClone + 'static>(&mut self, actor_name: Arc<str>, actor_ref: T) {
+        tracing::info!("Insert actor: {actor_name:?}: {} into system context: {:?}", std::any::type_name::<T>(), self.name);
         self.actor_registry.insert::<T>(actor_name, actor_ref);
     }
 
@@ -166,7 +167,19 @@ impl System {
                     *boxed_state
                 };
 
-                loop {
+                // call on_start
+                match ctx.on_start() {
+                    Ok(_) => {
+                        tracing::trace!("Starting the actor: {name:?}");
+                    }
+                    Err(err) => {
+                        tracing::error!("Error during actor start: {err:?}");
+                        ctx.kill();
+                    }
+                }
+
+                // main loop
+                while ctx.is_alive() {
                     tracing::trace!("iteration of the process: {name:?}");
                     let res = select.select(&mut state, &mut ctx, &mut actor).await;
 
@@ -176,6 +189,16 @@ impl System {
                         tracing::trace!("{name:?} successful iteration");
                     }
                 }
+                // call on_die
+                match ctx.on_die(name.clone()) {
+                    Ok(_) => {
+                        tracing::trace!("The actor: {name:?} is dead");
+                    }
+                    Err(err) => {
+                        tracing::error!("Error during actor die: {err:?}");
+                        return;
+                    }
+                };
             } else {
                 tracing::error!("Can't run {name:?}, system dropped");
                 ()

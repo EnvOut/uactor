@@ -59,6 +59,8 @@ mod select_from_tuple {
         async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
             if let Ok(msg) = self.next().await {
                 let _ = actor.handle(inject, msg, ctx).await?;
+            } else {
+                tracing::error!("Channel closed");
             }
             Ok(())
         }

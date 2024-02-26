@@ -1,43 +1,99 @@
-use crate::data_publisher::DataPublisher;
-use crate::system::System;
+use std::sync::Arc;
+use crate::actor::MessageSender;
+use crate::data_publisher::{DataPublisher, TryClone};
+use crate::message::Message;
+use crate::system::{System, utils};
 
 pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type ContextInitializationError<T> = Result<T, String>;
 
 pub trait ActorContext: Sized + Unpin + 'static {
-    async fn on_start(&mut self) -> ContextResult<()>;
-    async fn on_die(&mut self) -> ContextResult<()>;
-    async fn on_iteration(&mut self) -> ContextResult<()>;
-    async fn kill(&mut self);
+    #[inline]
+    fn on_start(&mut self) -> ContextResult<()> { Ok(()) }
+    #[inline]
+    fn on_die(&mut self, actor_name: Arc<str>) -> ContextResult<()> { Ok(()) }
+    #[inline]
+    fn on_iteration(&mut self) -> ContextResult<()> { Ok(()) }
+    fn kill(&mut self);
+    #[allow(clippy::wrong_self_convention)]
+    fn is_alive(&mut self) -> bool { true }
     async fn create(system: &mut System) -> ContextInitializationError<Self>;
 }
 
+pub struct ActorDied(pub Arc<str>);
+impl Message for ActorDied {}
+
 #[derive(derive_more::Constructor)]
 pub struct Context {
-    pub killed: bool,
+    pub alive: bool,
 }
 
 impl ActorContext for Context {
-    async fn on_start(&mut self) -> ContextResult<()> { Ok(()) }
+    fn kill(&mut self) { self.alive = false; }
 
-    async fn on_die(&mut self) -> ContextResult<()> { Ok(()) }
-
-    async fn on_iteration(&mut self) -> ContextResult<()> { Ok(()) }
-
-    async fn kill(&mut self) { self.killed = true; }
+    fn is_alive(&mut self) -> bool {
+        self.alive
+    }
 
     async fn create(_: &mut System) -> ContextInitializationError<Self> {
-        Ok(Context { killed: false })
+        Ok(Context { alive: true })
     }
 }
 
-#[derive(derive_more::Constructor)]
-pub struct SupervisedContext<T: DataPublisher> {
-    pub killed: bool,
-    id: u32,
-    supervisor: T,
-}
+pub mod supervised {
+    use std::sync::Arc;
+    use crate::actor::MessageSender;
+    use crate::context::{ActorContext, ActorDied, ContextInitializationError, ContextResult};
+    use crate::data_publisher::{DataPublisher, TryClone};
+    use crate::system::{System, utils};
 
+    #[derive(derive_more::Constructor)]
+    pub struct SupervisedContext<T> where T: MessageSender<ActorDied> {
+        pub alive: bool,
+        id: usize,
+        supervisor: T,
+    }
+
+    impl<T> ActorContext for SupervisedContext<T>
+        where T: MessageSender<ActorDied> + Unpin + 'static + TryClone + Send + Sync
+    {
+        fn on_die(&mut self, actor_name: Arc<str>) -> ContextResult<()> {
+            if let Err(e) = self.supervisor.send(ActorDied(actor_name)) {
+                tracing::error!("Failed to notify supervisor about actor death: {:?}", e);
+            }
+            Ok(())
+        }
+
+        fn kill(&mut self) { self.alive = false; }
+
+        fn is_alive(&mut self) -> bool {
+            self.alive
+        }
+
+        async fn create(system: &mut System) -> ContextInitializationError<Self> {
+            let mut found_actors: Vec<T> = system.get_actors::<T>()
+                .map_err(|e| e.to_string())?;
+            let is_more_one = found_actors.len() > 1;
+
+            if is_more_one {
+                let msg = format!("SupervisedContext can't be used with more than one actor: {:?} of the same kind", utils::type_name::<T>());
+                tracing::error!(msg);
+                return Err(msg);
+            } else if found_actors.len() == 0 {
+                let msg = format!("SupervisedContext can't be used without selected supervisor's actor: {:?}", utils::type_name::<T>());
+                tracing::error!(msg);
+                return Err(msg);
+            }
+
+            let (supervisor) = found_actors.remove(0);
+            Ok(Self {
+                alive: true,
+                id: rand::random(),
+                supervisor,
+            })
+        }
+    }
+}
 
 pub mod extensions {
     use std::any::{Any, TypeId};
@@ -385,10 +441,10 @@ pub mod actor_registry {
 
     #[derive(thiserror::Error, Debug)]
     pub enum ActorRegistryErrors {
-        #[error("Type {kind:?} with name: {actor_name:?} is not registered within system context {system_name:?}")]
+        #[error("Actor {kind:?} with name: {actor_name:?} is not registered within system context {system_name:?}")]
         NotRegisteredActor { system_name: Arc<str>, kind: String, actor_name: Arc<str> },
 
-        #[error("Type {kind:?} is not registered within system context {system_name:?}")]
+        #[error("Actor {kind} is not registered within system context {system_name:?}")]
         NotRegisteredActorKind { system_name: Arc<str>, kind: String },
 
         #[error("Can't downcast registered actor into: {kind:?}, system: {system_name:?}")]
