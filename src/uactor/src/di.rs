@@ -12,12 +12,13 @@ pub enum InjectError {
 
 /// Sample:
 /// ```
-///# use uactor::di::{Inject, InjectError};
+///# use uactor::context::extensions::Service;
+/// use uactor::di::{Inject, InjectError};
 ///# use uactor::system::System;
 ///
 /// pub struct References {
-///     var1: String,
-///     var2: String,
+///     var1: Service<String>,
+///     var2: Service<String>,
 /// }
 ///
 /// impl Inject for References {
@@ -27,7 +28,7 @@ pub enum InjectError {
 ///     {
 ///         let var1 = system.get_service::<String>()?.clone();
 ///         let var2 = system.get_service::<String>()?.clone();
-///         Ok(Self { var1: var1, var2: var2 })
+///         Ok(Self { var1, var2 })
 ///     }
 /// }
 /// ```

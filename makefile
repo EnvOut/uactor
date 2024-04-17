@@ -7,5 +7,8 @@ run_all_examples:
     cargo run --example interval && \
     cargo run --example single_channel_actor
 
-publish:
-	cargo publish -p uactor #--dry-run
+run_tests:
+	cargo test
+
+publish: run_tests run_all_examples
+	cargo publish -p uactor --allow-dirty

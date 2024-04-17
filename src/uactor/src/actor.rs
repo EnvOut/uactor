@@ -83,14 +83,22 @@ pub trait MessageSender<M> where M: Message {
 
 /// Example:
 /// ```
-///# use uactor::actor::Actor;
-///# use uactor::system::System;
-///# let mut system = System::global().build();
-///# pub struct Actor1;
-///# impl Actor for Actor1 { type Context = (); type Inject = (); }
-///# let actor1 = Actor1;
-/// let (mut actor1_ref, handle) = uactor::spawn_with_ref!(system, actor1: Actor1);
+///# use std::future::Future;
+/// use uactor::actor::{Actor, HandleResult};
+/// use uactor::context::Context;
+/// use uactor::system::System;
+/// let mut system = System::global().build();
+/// pub struct Actor1;
+/// impl Actor for Actor1 { type Context = Context; type Inject = (); }
+/// let actor1 = Actor1;
+/// use uactor::message::{Message};
+/// use uactor::message_impl;
+/// pub struct Ping;
+/// impl Message for Ping {}
+/// impl uactor::actor::Handler<Ping> for Actor1 { async fn handle(&mut self, inject: &mut Self::Inject, msg: Ping, ctx: &mut Self::Context) -> HandleResult { todo!() }  }
+/// uactor::generate_actor_ref!(Actor1, { });
 /// ```
+/// let (mut actor1_ref, handle) = uactor::spawn_with_ref!(system, actor1: Actor1);
 #[macro_export]
 macro_rules! generate_actor_ref {
     ($ActorType: ident, { $($Message: ident),* }) => {

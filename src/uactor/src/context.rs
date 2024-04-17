@@ -11,7 +11,7 @@ pub trait ActorContext: Sized + Unpin + 'static {
     #[inline]
     fn on_start(&mut self) -> ContextResult<()> { Ok(()) }
     #[inline]
-    fn on_die(&mut self, actor_name: Arc<str>) -> ContextResult<()> { Ok(()) }
+    fn on_die(&mut self, _actor_name: Arc<str>) -> ContextResult<()> { Ok(()) }
     #[inline]
     fn on_iteration(&mut self) -> ContextResult<()> { Ok(()) }
     fn kill(&mut self);
@@ -85,7 +85,7 @@ pub mod supervised {
                 return Err(msg);
             }
 
-            let (supervisor) = found_actors.remove(0);
+            let supervisor = found_actors.remove(0);
             Ok(Self {
                 alive: true,
                 id: rand::random(),
