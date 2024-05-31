@@ -6,27 +6,33 @@ use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::Instant;
 
-pub trait Message {}
+pub trait Message {
+    fn static_name() -> String;
 
-impl<A, B> Message for Result<A, B>
-where
-    A: Message,
-    B: Message,
-{
+    fn name(&self) -> String {
+        Self::static_name()
+    }
 }
 
-impl<A> Message for Option<A> where A: Message {}
+impl<A, B> Message for Result<A, B> where A: Message, B: Message {
+    fn static_name() -> String {
+        format!("Result<{}, {}>", A::static_name(), B::static_name())
+    }
+}
 
-impl<A> Message for Arc<A> where A: Message {}
-
-impl<A> Message for Mutex<A> where A: Message {}
-
-impl<A> Message for RwLock<A> where A: Message {}
+impl<A> Message for Option<A> where A: Message { fn static_name() -> String { format!("Option<{}>", A::static_name()) }}
+impl<A> Message for Arc<A> where A: Message { fn static_name() -> String { format!("Arc<{}>", A::static_name()) }}
+impl<A> Message for Mutex<A> where A: Message { fn static_name() -> String { format!("Mutex<{}>", A::static_name()) }}
+impl<A> Message for RwLock<A> where A: Message { fn static_name() -> String { format!("RwLock<{}>", A::static_name()) }}
 
 #[macro_export]
 macro_rules! message_impl {
     ($($T: ident),*) => {
-        $(impl Message for $T {})*
+        $(
+            impl Message for $T { fn static_name() -> String {
+                stringify!($T).to_string()
+            }}
+        )*
     };
 }
 

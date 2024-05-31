@@ -12,6 +12,7 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use crate::context::actor_registry::{ActorRegistry, ActorRegistryErrors};
 use crate::data_publisher::{TryClone, TryCloneError};
+use crate::datasource::DataSource;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ActorRunningError {
@@ -122,7 +123,7 @@ impl System {
         if let Some(tx) = self.initialized_actors.remove(&actor_name) {
             let state_res = A::Inject::inject(self).await;
 
-            let ctx = A::Context::create(self).await.map_err(|err|ActorRunningError::ContextError(err))?;
+            let ctx = A::Context::create(self, actor_name.clone()).await.map_err(|err|ActorRunningError::ContextError(err))?;
 
             if let Err(err) = state_res.as_ref() {
                 tracing::error!("Can't inject dependencies for {actor_name:?}, actor not started. Err: {err:?}")
@@ -184,7 +185,7 @@ impl System {
                     let res = select.select(&mut state, &mut ctx, &mut actor).await;
 
                     if let Err(err) = res {
-                        tracing::error!("Error during process iteration: {}", err);
+                        tracing::error!("An error occurred while message handling by the \"{}\", error message: \"{}\"", ctx.get_name(), err);
                     } else {
                         tracing::trace!("{name:?} successful iteration");
                     }

@@ -4,7 +4,7 @@ use uactor::system::System;
 use crate::actor1::Actor1;
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
-use crate::messages::{PingMsg, PongMsg};
+use crate::messages::PingMsg;
 
 mod messages {
     use tokio::sync::oneshot::Sender;

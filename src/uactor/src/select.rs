@@ -13,6 +13,8 @@ pub type SelectResult = HandleResult;
 #[doc(hidden)]
 #[allow(non_snake_case)]
 mod select_from_tuple {
+    use tracing::Instrument;
+    use crate::context::ActorContext;
     use super::*;
 
     macro_rules! select_from_tuple {
@@ -56,6 +58,19 @@ mod select_from_tuple {
             A: Handler<S1::Item> + Send,
             <A as Actor>::Inject: Send,
     {
+        #[cfg(feature = "tokio_tracing")]
+        async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
+            if let Ok(msg) = self.next().await {
+                let message_name = <S1 as DataSource>::Item::static_name();
+                let _enter = tracing::span!(tracing::Level::INFO, message_name, actor.name = ctx.get_name(), actor.message = message_name).enter();
+                let _ = actor.handle(inject, msg, ctx).await?;
+            } else {
+                tracing::error!("Channel closed");
+            }
+            Ok(())
+        }
+
+        #[cfg(not(feature = "tokio_tracing"))]
         async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
             if let Ok(msg) = self.next().await {
                 let _ = actor.handle(inject, msg, ctx).await?;

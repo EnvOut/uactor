@@ -30,3 +30,4 @@ name = "base_sample"
 
 [features]
 async_sender = []
+tokio_tracing = []
