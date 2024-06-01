@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::num::{
     NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8,
 };
@@ -6,27 +7,28 @@ use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::Instant;
 
-pub trait Message {}
+pub trait Message {
+    fn static_name() -> &'static str;
 
-impl<A, B> Message for Result<A, B>
-where
-    A: Message,
-    B: Message,
-{
+    fn name(&self) -> String {
+        Self::static_name().to_owned()
+    }
 }
 
-impl<A> Message for Option<A> where A: Message {}
-
-impl<A> Message for Arc<A> where A: Message {}
-
-impl<A> Message for Mutex<A> where A: Message {}
-
-impl<A> Message for RwLock<A> where A: Message {}
+impl<A, B> Message for Result<A, B> where A: Message, B: Message { fn static_name() -> &'static str { type_name::<Result<A, B>>() } }
+impl<A> Message for Option<A> where A: Message { fn static_name() -> &'static str { type_name::<Option<String>>() }}
+impl<A> Message for Arc<A> where A: Message { fn static_name() -> &'static str { type_name::<Arc<String>>() }}
+impl<A> Message for Mutex<A> where A: Message { fn static_name() -> &'static str { type_name::<Mutex<String>>() }}
+impl<A> Message for RwLock<A> where A: Message { fn static_name() -> &'static str { type_name::<RwLock<String>>() }}
 
 #[macro_export]
 macro_rules! message_impl {
     ($($T: ident),*) => {
-        $(impl Message for $T {})*
+        $(
+            impl Message for $T { fn static_name() -> &'static str {
+                stringify!($T)
+            }}
+        )*
     };
 }
 

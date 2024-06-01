@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use crate::actor::MessageSender;
 use crate::data_publisher::{DataPublisher, TryClone};
-use crate::message::Message;
+use crate::message::{Message};
+use crate::message_impl;
 use crate::system::{System, utils};
 
 pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -15,28 +16,31 @@ pub trait ActorContext: Sized + Unpin + 'static {
     #[inline]
     fn on_iteration(&mut self) -> ContextResult<()> { Ok(()) }
     fn kill(&mut self);
+    fn get_name(&self) -> &str;
     #[allow(clippy::wrong_self_convention)]
     fn is_alive(&mut self) -> bool { true }
-    async fn create(system: &mut System) -> ContextInitializationError<Self>;
+    async fn create(system: &mut System, name: Arc<str>) -> ContextInitializationError<Self>;
 }
 
 pub struct ActorDied(pub Arc<str>);
-impl Message for ActorDied {}
+
+impl Message for ActorDied { fn static_name() -> &'static str { "ActorDied" } }
 
 #[derive(derive_more::Constructor)]
 pub struct Context {
-    pub alive: bool,
+    alive: bool,
+    name: Arc<str>,
 }
 
 impl ActorContext for Context {
     fn kill(&mut self) { self.alive = false; }
 
-    fn is_alive(&mut self) -> bool {
-        self.alive
-    }
+    fn get_name(&self) -> &str { &self.name }
 
-    async fn create(_: &mut System) -> ContextInitializationError<Self> {
-        Ok(Context { alive: true })
+    fn is_alive(&mut self) -> bool { self.alive }
+
+    async fn create(_: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
+        Ok(Context { alive: true, name })
     }
 }
 
@@ -52,6 +56,7 @@ pub mod supervised {
         pub alive: bool,
         id: usize,
         supervisor: T,
+        name: Arc<str>,
     }
 
     impl<T> ActorContext for SupervisedContext<T>
@@ -66,11 +71,11 @@ pub mod supervised {
 
         fn kill(&mut self) { self.alive = false; }
 
-        fn is_alive(&mut self) -> bool {
-            self.alive
-        }
+        fn get_name(&self) -> &str { &self.name }
 
-        async fn create(system: &mut System) -> ContextInitializationError<Self> {
+        fn is_alive(&mut self) -> bool { self.alive }
+
+        async fn create(system: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
             let mut found_actors: Vec<T> = system.get_actors::<T>()
                 .map_err(|e| e.to_string())?;
             let is_more_one = found_actors.len() > 1;
@@ -90,6 +95,7 @@ pub mod supervised {
                 alive: true,
                 id: rand::random(),
                 supervisor,
+                name,
             })
         }
     }

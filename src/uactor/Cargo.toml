@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.9.1"
+version = "0.10.1"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -29,4 +29,6 @@ tokio = { version = "1.35.1", features = ["full"] }
 name = "base_sample"
 
 [features]
+default = ["tokio_tracing"]
 async_sender = []
+tokio_tracing = []
