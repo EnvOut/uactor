@@ -94,7 +94,7 @@ pub trait MessageSender<M> where M: Message {
 /// use uactor::message::{Message};
 /// use uactor::message_impl;
 /// pub struct Ping;
-/// impl Message for Ping {}
+/// impl Message for Ping { fn static_name() -> String { "Ping".to_string() } }
 /// impl uactor::actor::Handler<Ping> for Actor1 { async fn handle(&mut self, inject: &mut Self::Inject, msg: Ping, ctx: &mut Self::Context) -> HandleResult { todo!() }  }
 /// uactor::generate_actor_ref!(Actor1, { });
 /// ```
@@ -106,8 +106,22 @@ macro_rules! generate_actor_ref {
             pub enum [<$ActorType Msg>] {
                 $($Message($Message)),*
             }
-            impl uactor::message::Message for [<$ActorType Msg>] { }
 
+            impl uactor::message::Message for [<$ActorType Msg>] {
+                fn static_name() -> String {
+                    stringify!([<$ActorType Msg>]).to_string()
+
+                }
+
+                fn name(&self) -> String {
+                    match self {
+                    $(
+                        Self::$Message(m) => m.name(),
+                    )*
+                        _ => Self::static_name(),
+                    }
+                }
+            }
 
             impl uactor::actor::Handler<[<$ActorType Msg>]> for $ActorType {
                 async fn handle(&mut self, inject: &mut  <Self as uactor::actor::Actor>::Inject, msg: [<$ActorType Msg>], ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {

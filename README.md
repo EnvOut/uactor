@@ -16,6 +16,7 @@ Examples can be found [here](src/uactor/examples).
 [Example: Interval](src%2Fuactor%2Fexamples%2Finterval.rs)
 7. Implemented Dependency Injection on pre-start stage to solve cross-references problem ("Actor#1" needs a reference to the "Actor#2", and "Actor#2" needs a reference to "Actor#1")  
 [Example: dependency injection](src/uactor/examples/dependency_injection.rs)
+8. Integration with tokio/tracing, including tracing of actor lifecycle, messages, and handlers
 
 ### Other projects:
 1. Actix
