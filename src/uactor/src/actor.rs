@@ -70,15 +70,31 @@ macro_rules! spawn_with_ref {
 }
 
 #[cfg(not(feature = "async_sender"))]
-pub trait MessageSender<M> where M: Message {
+pub trait MessageSender<M>
+where
+    M: Message,
+{
     fn send(&self, msg: M) -> crate::data_publisher::DataPublisherResult;
-    async fn ask<A>(&self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M) -> Result<A, crate::data_publisher::DataPublisherErrors>;
+    async fn ask<A>(
+        &self,
+        f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M,
+    ) -> Result<A, crate::data_publisher::DataPublisherErrors>;
 }
 
 #[cfg(feature = "async_sender")]
-pub trait MessageSender<M> where M: Message {
+pub trait MessageSender<M>
+where
+    M: Message,
+{
     async fn send(&self, msg: M) -> crate::data_publisher::DataPublisherResult;
-    async fn ask<A>(&self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M) -> Result<A, crate::data_publisher::DataPublisherErrors>;
+    async fn ask<A>(
+        &self,
+        f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M,
+    ) -> Result<A, crate::data_publisher::DataPublisherErrors>;
+}
+
+pub trait NamedActorRef {
+    fn name() -> &'static str;
 }
 
 /// Example:
@@ -107,11 +123,13 @@ macro_rules! generate_actor_ref {
                 $($Message($Message)),*
             }
 
-            impl uactor::message::Message for [<$ActorType Msg>] {
+            impl NamedActorRef for [<$ActorType Msg>] {
                 fn static_name() -> &'static str {
                     stringify!([<$ActorType Msg>])
                 }
+            }
 
+            impl uactor::message::Message for [<$ActorType Msg>] {
                 fn name(&self) -> String {
                     match self {
                     $(
@@ -203,7 +221,12 @@ where
     M: Message,
 {
     /// This method is called for every message received by this actor.
-    fn handle(&mut self, inject: &mut Self::Inject, msg: M, ctx: &mut Self::Context) -> impl std::future::Future<Output = HandleResult> + Send;
+    fn handle(
+        &mut self,
+        inject: &mut Self::Inject,
+        msg: M,
+        ctx: &mut Self::Context,
+    ) -> impl std::future::Future<Output = HandleResult> + Send;
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;

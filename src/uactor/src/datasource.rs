@@ -1,3 +1,6 @@
+use std::net::{Ipv4Addr, SocketAddrV4};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::net::unix::SocketAddr;
 use crate::message::IntervalMessage;
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::time::Interval;
@@ -111,5 +114,31 @@ impl DataSource for Interval {
             time: instant,
             duration: self.period(),
         })
+    }
+}
+
+pub struct TokioTcpListenerDataSource {
+    tcp_listener: TcpListener
+}
+
+impl TokioTcpListenerDataSource {
+    pub async fn new(ip: Option<Ipv4Addr>, port: u16) -> Self {
+        let addr = SocketAddrV4::new(ip.unwrap_or(Ipv4Addr::UNSPECIFIED), port);
+
+        let tcp_listener = TcpListener::bind(&addr).await.unwrap();
+
+        Self {
+            tcp_listener
+        }
+    }
+}
+
+impl DataSource for TokioTcpListenerDataSource {
+    type Item = (TcpStream, std::net::SocketAddr);
+
+    async fn next(&mut self) -> DataSourceResult<Self::Item> {
+        let socket_addr = self.tcp_listener.accept().await.map_err(DataSourceErrors::IoError)?;
+
+        Ok(socket_addr)
     }
 }

@@ -1,30 +1,42 @@
-use std::sync::Arc;
 use crate::actor::MessageSender;
 use crate::data_publisher::{DataPublisher, TryClone};
-use crate::message::{Message};
+use crate::message::Message;
 use crate::message_impl;
-use crate::system::{System, utils};
+use crate::system::{utils, System};
+use std::sync::Arc;
 
 pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type ContextInitializationError<T> = Result<T, String>;
 
 pub trait ActorContext: Sized + Unpin + 'static {
     #[inline]
-    fn on_start(&mut self) -> ContextResult<()> { Ok(()) }
+    fn on_start(&mut self) -> ContextResult<()> {
+        Ok(())
+    }
     #[inline]
-    fn on_die(&mut self, _actor_name: Arc<str>) -> ContextResult<()> { Ok(()) }
+    fn on_die(&mut self, _actor_name: Arc<str>) -> ContextResult<()> {
+        Ok(())
+    }
     #[inline]
-    fn on_iteration(&mut self) -> ContextResult<()> { Ok(()) }
+    fn on_iteration(&mut self) -> ContextResult<()> {
+        Ok(())
+    }
     fn kill(&mut self);
     fn get_name(&self) -> &str;
     #[allow(clippy::wrong_self_convention)]
-    fn is_alive(&mut self) -> bool { true }
+    fn is_alive(&mut self) -> bool {
+        true
+    }
     async fn create(system: &mut System, name: Arc<str>) -> ContextInitializationError<Self>;
 }
 
 pub struct ActorDied(pub Arc<str>);
 
-impl Message for ActorDied { fn static_name() -> &'static str { "ActorDied" } }
+impl Message for ActorDied {
+    fn static_name() -> &'static str {
+        "ActorDied"
+    }
+}
 
 #[derive(derive_more::Constructor)]
 pub struct Context {
@@ -33,11 +45,17 @@ pub struct Context {
 }
 
 impl ActorContext for Context {
-    fn kill(&mut self) { self.alive = false; }
+    fn kill(&mut self) {
+        self.alive = false;
+    }
 
-    fn get_name(&self) -> &str { &self.name }
+    fn get_name(&self) -> &str {
+        &self.name
+    }
 
-    fn is_alive(&mut self) -> bool { self.alive }
+    fn is_alive(&mut self) -> bool {
+        self.alive
+    }
 
     async fn create(_: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
         Ok(Context { alive: true, name })
@@ -45,14 +63,17 @@ impl ActorContext for Context {
 }
 
 pub mod supervised {
-    use std::sync::Arc;
     use crate::actor::MessageSender;
     use crate::context::{ActorContext, ActorDied, ContextInitializationError, ContextResult};
     use crate::data_publisher::{DataPublisher, TryClone};
-    use crate::system::{System, utils};
+    use crate::system::{utils, System};
+    use std::sync::Arc;
 
     #[derive(derive_more::Constructor)]
-    pub struct SupervisedContext<T> where T: MessageSender<ActorDied> {
+    pub struct SupervisedContext<T>
+    where
+        T: MessageSender<ActorDied>,
+    {
         pub alive: bool,
         id: usize,
         supervisor: T,
@@ -60,7 +81,8 @@ pub mod supervised {
     }
 
     impl<T> ActorContext for SupervisedContext<T>
-        where T: MessageSender<ActorDied> + Unpin + 'static + TryClone + Send + Sync
+    where
+        T: MessageSender<ActorDied> + Unpin + 'static + TryClone + Send + Sync,
     {
         fn on_die(&mut self, actor_name: Arc<str>) -> ContextResult<()> {
             if let Err(e) = self.supervisor.send(ActorDied(actor_name)) {
@@ -69,15 +91,20 @@ pub mod supervised {
             Ok(())
         }
 
-        fn kill(&mut self) { self.alive = false; }
+        fn kill(&mut self) {
+            self.alive = false;
+        }
 
-        fn get_name(&self) -> &str { &self.name }
+        fn get_name(&self) -> &str {
+            &self.name
+        }
 
-        fn is_alive(&mut self) -> bool { self.alive }
+        fn is_alive(&mut self) -> bool {
+            self.alive
+        }
 
         async fn create(system: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
-            let mut found_actors: Vec<T> = system.get_actors::<T>()
-                .map_err(|e| e.to_string())?;
+            let mut found_actors: Vec<T> = system.get_actors::<T>().map_err(|e| e.to_string())?;
             let is_more_one = found_actors.len() > 1;
 
             if is_more_one {
@@ -85,7 +112,10 @@ pub mod supervised {
                 tracing::error!(msg);
                 return Err(msg);
             } else if found_actors.len() == 0 {
-                let msg = format!("SupervisedContext can't be used without selected supervisor's actor: {:?}", utils::type_name::<T>());
+                let msg = format!(
+                    "SupervisedContext can't be used without selected supervisor's actor: {:?}",
+                    utils::type_name::<T>()
+                );
                 tracing::error!(msg);
                 return Err(msg);
             }
@@ -107,6 +137,7 @@ pub mod extensions {
     use std::fmt;
     use std::hash::{BuildHasherDefault, Hasher};
     use std::ops::{Deref, DerefMut};
+    use std::os::macos::raw::stat;
     use std::sync::Arc;
 
     type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
@@ -269,9 +300,7 @@ pub mod extensions {
         /// ```
         #[inline]
         pub fn is_empty(&self) -> bool {
-            self.map
-                .as_ref()
-                .map_or(true, |map| map.is_empty())
+            self.map.as_ref().map_or(true, |map| map.is_empty())
         }
 
         /// Get the numer of extensions available.
@@ -287,9 +316,7 @@ pub mod extensions {
         /// ```
         #[inline]
         pub fn len(&self) -> usize {
-            self.map
-                .as_ref()
-                .map_or(0, |map| map.len())
+            self.map.as_ref().map_or(0, |map| map.len())
         }
 
         /// Extends `self` with another `Extensions`.
@@ -350,6 +377,16 @@ pub mod extensions {
         }
     }
 
+    #[derive(Debug, Clone, Copy)]
+    #[must_use]
+    pub enum Actor {
+        NamedActor {
+            name: &'static str
+        },
+        All,
+        First,
+    }
+
     #[derive(thiserror::Error, Debug)]
     pub enum ExtensionErrors {
         #[error("Type {kind:?} is not registered within system context {system_name:?}")]
@@ -358,17 +395,20 @@ pub mod extensions {
 }
 
 pub mod actor_registry {
+    use crate::context::extensions::IdHasher;
+    use crate::data_publisher::{TryClone, TryCloneError};
     use std::any::{Any, TypeId};
     use std::collections::HashMap;
     use std::fmt;
     use std::hash::BuildHasherDefault;
     use std::ops::{Deref, DerefMut};
     use std::sync::Arc;
-    use crate::data_publisher::{TryClone, TryCloneError};
+
+    type AnyBoxed = Box<dyn Any + Send + Sync>;
 
     #[derive(Default)]
     pub struct ActorRegistry {
-        inner: HashMap<TypeId, HashMap<Arc<str>, Box<dyn Any + Send + Sync>>, BuildHasherDefault<crate::context::extensions::IdHasher>>,
+        inner: HashMap<TypeId, HashMap<Arc<str>, AnyBoxed>, BuildHasherDefault<IdHasher>>,
     }
 
     impl ActorRegistry {
@@ -379,20 +419,24 @@ pub mod actor_registry {
         }
 
         // TODO: docs
-        pub fn insert<T: Send + Sync + 'static>(&mut self, actor_name: Arc<str>, val: T) -> Option<T> {
+        pub fn insert<T: Send + Sync + 'static>(
+            &mut self,
+            actor_name: Arc<str>,
+            val: T,
+        ) -> Option<T> {
             let entry = self.inner.entry(TypeId::of::<T>()).or_default();
-            entry.insert(actor_name, Box::new(val))
-                .and_then(|boxed| {
-                    (boxed as Box<dyn Any + 'static>)
-                        .downcast()
-                        .ok()
-                        .map(|boxed| *boxed)
-                })
+            entry.insert(actor_name, Box::new(val)).and_then(|boxed| {
+                (boxed as Box<dyn Any + 'static>)
+                    .downcast()
+                    .ok()
+                    .map(|boxed| *boxed)
+            })
         }
 
         // TODO: docs
         pub fn get_all<T: Send + Sync + 'static>(&self) -> Option<Vec<&T>> {
-            self.inner.get(&TypeId::of::<T>())?
+            self.inner
+                .get(&TypeId::of::<T>())?
                 .values()
                 .map(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
                 .collect::<Option<Vec<&T>>>()
@@ -400,9 +444,7 @@ pub mod actor_registry {
 
         // TODO: docs
         pub fn get_actor<T: Send + Sync + 'static>(&self, actor_name: Arc<str>) -> Option<&T> {
-            let boxed_actor_ref = self.inner
-                .get(&TypeId::of::<T>())?
-                .get(&actor_name)?;
+            let boxed_actor_ref = self.inner.get(&TypeId::of::<T>())?.get(&actor_name)?;
             (&**boxed_actor_ref as &(dyn Any + 'static)).downcast_ref()
         }
 
@@ -423,7 +465,9 @@ pub mod actor_registry {
 
     #[derive(Debug, Clone, Copy, Default)]
     #[must_use]
-    pub struct ActorRef<T>(pub T) where T: TryClone;
+    pub struct ActorRef<T>(pub T)
+    where
+        T: TryClone;
 
     impl<T: TryClone> TryClone for ActorRef<T> {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
@@ -448,7 +492,11 @@ pub mod actor_registry {
     #[derive(thiserror::Error, Debug)]
     pub enum ActorRegistryErrors {
         #[error("Actor {kind:?} with name: {actor_name:?} is not registered within system context {system_name:?}")]
-        NotRegisteredActor { system_name: Arc<str>, kind: String, actor_name: Arc<str> },
+        NotRegisteredActor {
+            system_name: Arc<str>,
+            kind: String,
+            actor_name: Arc<str>,
+        },
 
         #[error("Actor {kind} is not registered within system context {system_name:?}")]
         NotRegisteredActorKind { system_name: Arc<str>, kind: String },

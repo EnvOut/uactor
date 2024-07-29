@@ -44,8 +44,8 @@ mod select_from_tuple {
     }
 
     impl<A: Actor + Send> ActorSelect<A> for ()
-        where
-            <A as Actor>::Inject: Send,
+    where
+        <A as Actor>::Inject: Send,
     {
         async fn select(&mut self, _: &mut A::Inject, _: &mut <A as Actor>::Context, _: &mut A) -> SelectResult {
             pending::<SelectResult>().await
