@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::context::{ActorContext, Context};
 use crate::message::Message;
 
@@ -8,11 +9,18 @@ pub type ActorPreStartResult<T> = Result<T, Box<dyn std::error::Error + Send + S
 use crate::di::Inject;
 
 #[allow(unused_variables)]
-pub trait Actor: Sized + Unpin + 'static {
+pub trait Actor<State = ()>: Sized + Unpin + 'static
+where
+    State: Default,
+{
     /// Actor execution context type
     type Context: ActorContext + Send;
 
     type Inject: Inject + Sized;
+
+    async fn create_state(&mut self) -> Arc<State> {
+        Arc::new(Default::default())
+    }
 
     async fn pre_start(
         &mut self,
@@ -94,7 +102,7 @@ where
 }
 
 pub trait NamedActorRef {
-    fn name() -> &'static str;
+    fn static_name() -> &'static str;
 }
 
 /// Example:
@@ -123,14 +131,14 @@ macro_rules! generate_actor_ref {
                 $($Message($Message)),*
             }
 
-            impl NamedActorRef for [<$ActorType Msg>] {
+            impl ::uactor::actor::NamedActorRef for [<$ActorType Msg>] {
                 fn static_name() -> &'static str {
                     stringify!([<$ActorType Msg>])
                 }
             }
 
             impl uactor::message::Message for [<$ActorType Msg>] {
-                fn name(&self) -> String {
+                fn static_name(&self) -> String {
                     match self {
                     $(
                         Self::$Message(m) => m.name(),
