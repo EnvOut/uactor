@@ -104,7 +104,7 @@ pub mod inject_impls {
         type Dependency = Self;
 
         fn get_dependency(system: &System) -> Result<Self::Dependency, InjectError> {
-            let actor_name = Self::name();
+            let actor_name = Self::static_name();
             let actor = system.get_actor(Arc::from(actor_name))?;
             Ok(actor)
         }

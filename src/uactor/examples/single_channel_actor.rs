@@ -20,7 +20,7 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, EmptyState, Handler, HandleResult};
     use uactor::context::Context;
 
     use crate::messages::{PingMsg, PongMsg};
@@ -41,7 +41,7 @@ mod actor1 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor1, { PingMsg });
+    uactor::generate_actor_ref!(Actor1, { PingMsg }, EmptyState);
 }
 
 #[tokio::main]

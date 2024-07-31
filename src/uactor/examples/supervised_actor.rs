@@ -27,7 +27,7 @@ mod messages {
 
 mod actor1 {
     use tokio::sync::mpsc;
-    use uactor::actor::{Actor, Handler, HandleResult, MessageSender};
+    use uactor::actor::{Actor, EmptyState, Handler, HandleResult, MessageSender};
     use uactor::context::ActorContext;
     use uactor::context::supervised::SupervisedContext;
     use crate::messages::{PingMsg, PongMsg};
@@ -50,11 +50,11 @@ mod actor1 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor1, { PingMsg });
+    uactor::generate_actor_ref!(Actor1, { PingMsg }, EmptyState);
 }
 
 mod supervisor {
-    use uactor::actor::{Actor, Handler, HandleResult, MessageSender};
+    use uactor::actor::{Actor, EmptyState, Handler, HandleResult, MessageSender};
     use uactor::context::{ActorDied, Context};
     use uactor::data_publisher::{DataPublisher, DataPublisherResult, TryClone};
 
@@ -72,7 +72,7 @@ mod supervisor {
         }
     }
 
-    uactor::generate_actor_ref!(Supervisor, { ActorDied });
+    uactor::generate_actor_ref!(Supervisor, { ActorDied }, EmptyState);
 }
 
 #[tokio::main]

@@ -36,7 +36,7 @@ mod messages {
 mod actor1 {
     use tokio::sync::mpsc::UnboundedSender;
 
-    use uactor::actor::{Actor, Handler, HandleResult, MessageSender};
+    use uactor::actor::{Actor, EmptyState, Handler, HandleResult, MessageSender};
     use uactor::context::Context;
     use uactor::context::extensions::Service;
     use uactor::di::{Inject, InjectError};
@@ -90,11 +90,12 @@ mod actor1 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor1, { PingMsg, MessageWithoutReply });
+    uactor::generate_actor_ref!(Actor1, { PingMsg, MessageWithoutReply }, EmptyState);
+
 }
 
 mod actor2 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, EmptyState, Handler, HandleResult};
     use uactor::context::Context;
     use uactor::context::extensions::Service;
     use uactor::di::{Inject, InjectError};
@@ -142,7 +143,7 @@ mod actor2 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor2, { PingMsg, PrintMessage });
+    uactor::generate_actor_ref!(Actor2, { PingMsg, PrintMessage }, EmptyState);
 }
 
 pub mod services {
@@ -190,6 +191,7 @@ async fn main() -> anyhow::Result<()> {
     // Init actor2 (instance + spawn actor)
     let actor2 = Actor2;
     let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
+
 
     // Run actors
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
