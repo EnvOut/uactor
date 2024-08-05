@@ -1,9 +1,9 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::net::unix::SocketAddr;
-use crate::message::IntervalMessage;
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::time::Interval;
+
+use crate::message::IntervalMessage;
 
 pub type DataSourceResult<T> = Result<T, DataSourceErrors>;
 

@@ -113,6 +113,7 @@ pub type EmptyState = ();
 /// use uactor::actor::{Actor, HandleResult};
 /// use uactor::context::Context;
 /// use uactor::system::System;
+/// use uactor::actor::EmptyState;
 /// let mut system = System::global().build();
 /// pub struct Actor1;
 /// impl Actor for Actor1 { type Context = Context; type Inject = (); }
@@ -122,7 +123,7 @@ pub type EmptyState = ();
 /// pub struct Ping;
 /// impl Message for Ping { fn static_name() -> &'static str { "Ping" } }
 /// impl uactor::actor::Handler<Ping> for Actor1 { async fn handle(&mut self, inject: &mut Self::Inject, msg: Ping, ctx: &mut Self::Context) -> HandleResult { todo!() }  }
-/// uactor::generate_actor_ref!(Actor1, { });
+/// uactor::generate_actor_ref!(Actor1, { }, EmptyState);
 /// ```
 /// let (mut actor1_ref, handle) = uactor::spawn_with_ref!(system, actor1: Actor1);
 #[macro_export]

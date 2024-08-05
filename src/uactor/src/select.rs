@@ -64,8 +64,6 @@ mod select_from_tuple {
             // let message_name = <S1 as DataSource>::Item::static_name();
             let message_name: &'static str = type_name::<<S1 as DataSource>::Item>();
             if let Ok(msg) = self.next().await {
-                let mut span = tracing::span!(tracing::Level::INFO, "Actor::handle", actor.name = ctx.get_name(), actor.message = message_name);
-                let _enter = span.enter();
                 let _ = actor.handle(inject, msg, ctx).await?;
             } else {
                 tracing::error!("Channel closed");
