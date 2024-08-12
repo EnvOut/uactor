@@ -1,8 +1,6 @@
-use crate::actor::MessageSender;
-use crate::data_publisher::{DataPublisher, TryClone};
 use crate::message::Message;
-use crate::message_impl;
-use crate::system::{utils, System};
+use crate::system::System;
+use std::future::Future;
 use std::sync::Arc;
 
 pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -27,7 +25,10 @@ pub trait ActorContext: Sized + Unpin + 'static {
     fn is_alive(&mut self) -> bool {
         true
     }
-    async fn create(system: &mut System, name: Arc<str>) -> ContextInitializationError<Self>;
+    fn create(
+        system: &mut System,
+        name: Arc<str>,
+    ) -> impl Future<Output = ContextInitializationError<Self>> + Send;
 }
 
 pub struct ActorDied(pub Arc<str>);
@@ -65,7 +66,7 @@ impl ActorContext for Context {
 pub mod supervised {
     use crate::actor::MessageSender;
     use crate::context::{ActorContext, ActorDied, ContextInitializationError, ContextResult};
-    use crate::data_publisher::{DataPublisher, TryClone};
+    use crate::data_publisher::TryClone;
     use crate::system::{utils, System};
     use std::sync::Arc;
 
@@ -75,7 +76,7 @@ pub mod supervised {
         T: MessageSender<ActorDied>,
     {
         pub alive: bool,
-        id: usize,
+        _id: usize,
         supervisor: T,
         name: Arc<str>,
     }
@@ -111,7 +112,7 @@ pub mod supervised {
                 let msg = format!("SupervisedContext can't be used with more than one actor: {:?} of the same kind", utils::type_name::<T>());
                 tracing::error!(msg);
                 return Err(msg);
-            } else if found_actors.len() == 0 {
+            } else if found_actors.is_empty() {
                 let msg = format!(
                     "SupervisedContext can't be used without selected supervisor's actor: {:?}",
                     utils::type_name::<T>()
@@ -123,7 +124,7 @@ pub mod supervised {
             let supervisor = found_actors.remove(0);
             Ok(Self {
                 alive: true,
-                id: rand::random(),
+                _id: rand::random(),
                 supervisor,
                 name,
             })
@@ -137,7 +138,6 @@ pub mod extensions {
     use std::fmt;
     use std::hash::{BuildHasherDefault, Hasher};
     use std::ops::{Deref, DerefMut};
-    use std::os::macos::raw::stat;
     use std::sync::Arc;
 
     type AnyMap = HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>;
@@ -195,7 +195,8 @@ pub mod extensions {
         // pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
         pub fn insert<T: Send + Sync + 'static>(&mut self, val: T) -> Option<T> {
             self.map
-                .get_or_insert_with(|| Box::<HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>>::default())
+                .get_or_insert_with(Box::<HashMap<TypeId, Box<dyn Any + Send + Sync>, BuildHasherDefault<IdHasher>>>::default
+                )
                 .insert(TypeId::of::<T>(), Box::new(val))
                 .and_then(|boxed| {
                     (boxed as Box<dyn Any + 'static>)
@@ -303,7 +304,7 @@ pub mod extensions {
             self.map.as_ref().map_or(true, |map| map.is_empty())
         }
 
-        /// Get the numer of extensions available.
+        /// Get the number of extensions available.
         ///
         /// # Example
         ///
@@ -380,9 +381,7 @@ pub mod extensions {
     #[derive(Debug, Clone, Copy)]
     #[must_use]
     pub enum Actor {
-        NamedActor {
-            name: &'static str
-        },
+        NamedActor { name: &'static str },
         All,
         First,
     }

@@ -1,11 +1,15 @@
 use crate::actor::{Actor, HandleResult, Handler};
-use crate::context::Context;
 use crate::datasource::DataSource;
 use crate::message::Message;
 use std::future::pending;
 
 pub trait ActorSelect<A: Actor + Send> {
-    fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> impl std::future::Future<Output = SelectResult> + Send;
+    fn select(
+        &mut self,
+        inject: &mut A::Inject,
+        ctx: &mut <A as Actor>::Context,
+        actor: &mut A,
+    ) -> impl std::future::Future<Output = SelectResult> + Send;
 }
 
 pub type SelectResult = HandleResult;
@@ -13,10 +17,8 @@ pub type SelectResult = HandleResult;
 #[doc(hidden)]
 #[allow(non_snake_case)]
 mod select_from_tuple {
-    use std::any::type_name;
-    use tracing::Instrument;
-    use crate::context::ActorContext;
     use super::*;
+    use std::any::type_name;
 
     macro_rules! select_from_tuple {
         ($($T: ident),*) => {
@@ -47,24 +49,34 @@ mod select_from_tuple {
     where
         <A as Actor>::Inject: Send,
     {
-        async fn select(&mut self, _: &mut A::Inject, _: &mut <A as Actor>::Context, _: &mut A) -> SelectResult {
+        async fn select(
+            &mut self,
+            _: &mut A::Inject,
+            _: &mut <A as Actor>::Context,
+            _: &mut A,
+        ) -> SelectResult {
             pending::<SelectResult>().await
         }
     }
 
     impl<A, S1> ActorSelect<A> for S1
-        where
-            S1::Item: Message + Send,
-            S1: DataSource + Send,
-            A: Handler<S1::Item> + Send,
-            <A as Actor>::Inject: Send,
+    where
+        S1::Item: Message + Send,
+        S1: DataSource + Send,
+        A: Handler<S1::Item> + Send,
+        <A as Actor>::Inject: Send,
     {
         #[cfg(feature = "tokio_tracing")]
-        async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
+        async fn select(
+            &mut self,
+            inject: &mut A::Inject,
+            ctx: &mut <A as Actor>::Context,
+            actor: &mut A,
+        ) -> SelectResult {
             // let message_name = <S1 as DataSource>::Item::static_name();
-            let message_name: &'static str = type_name::<<S1 as DataSource>::Item>();
+            let _: &'static str = type_name::<<S1 as DataSource>::Item>();
             if let Ok(msg) = self.next().await {
-                let _ = actor.handle(inject, msg, ctx).await?;
+                actor.handle(inject, msg, ctx).await?;
             } else {
                 tracing::error!("Channel closed");
             }
@@ -72,7 +84,12 @@ mod select_from_tuple {
         }
 
         #[cfg(not(feature = "tokio_tracing"))]
-        async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
+        async fn select(
+            &mut self,
+            inject: &mut A::Inject,
+            ctx: &mut <A as Actor>::Context,
+            actor: &mut A,
+        ) -> SelectResult {
             if let Ok(msg) = self.next().await {
                 let _ = actor.handle(inject, msg, ctx).await?;
             } else {

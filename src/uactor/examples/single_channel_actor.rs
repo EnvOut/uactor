@@ -20,7 +20,7 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, EmptyState, Handler, HandleResult};
+    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
     use uactor::context::Context;
 
     use crate::messages::{PingMsg, PongMsg};
@@ -33,7 +33,12 @@ mod actor1 {
     }
 
     impl Handler<PingMsg> for Actor1 {
-        async fn handle(&mut self, _: &mut Self::Inject, ping: PingMsg, _: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            ping: PingMsg,
+            _: &mut Context,
+        ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
@@ -54,8 +59,7 @@ async fn main() -> anyhow::Result<()> {
 
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
 
-    let pong = actor1_ref.ask(|reply| PingMsg(reply))
-        .await?;
+    let pong = actor1_ref.ask(PingMsg).await?;
     println!("main: received {pong:?} message");
 
     Ok(())

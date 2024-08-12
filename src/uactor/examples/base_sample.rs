@@ -1,11 +1,9 @@
 use std::time::Duration;
 
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use uactor::select::ActorSelect;
 use uactor::system::System;
 
 use crate::actor1::Actor1;
@@ -37,7 +35,7 @@ pub mod messages {
 }
 
 pub mod actor1 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, HandleResult, Handler};
     use uactor::context::Context;
 
     use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
@@ -52,14 +50,24 @@ pub mod actor1 {
     }
 
     impl Handler<PingPongMsg> for Actor1 {
-        async fn handle(&mut self, _: &mut Self::Inject, msg: PingPongMsg, ctx: &mut Self::Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            msg: PingPongMsg,
+            _ctx: &mut Self::Context,
+        ) -> HandleResult {
             println!("actor1 handle PingPongMsg: {msg:?}");
             Ok(())
         }
     }
 
     impl Handler<ReqMsg> for Actor1 {
-        async fn handle(&mut self, _: &mut Self::Inject, msg: ReqMsg, ctx: &mut Self::Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            msg: ReqMsg,
+            _ctx: &mut Self::Context,
+        ) -> HandleResult {
             println!("actor1 handle ReqMsg: {msg:?}");
             self.resp_tx.send(RespMsg::Ok).await?;
             Ok(())
@@ -68,7 +76,7 @@ pub mod actor1 {
 }
 
 pub mod actor2 {
-    use uactor::actor::{Actor, Handler, HandleResult};
+    use uactor::actor::{Actor, HandleResult, Handler};
     use uactor::context::Context;
 
     use crate::messages::RespMsg;
@@ -76,7 +84,12 @@ pub mod actor2 {
     pub struct Actor2;
 
     impl Handler<RespMsg> for Actor2 {
-        async fn handle(&mut self, _: &mut Self::Inject, msg: RespMsg, _: &mut Self::Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            msg: RespMsg,
+            _: &mut Self::Context,
+        ) -> HandleResult {
             println!("actor2 handle RespMsg: {msg:?}");
             Ok(())
         }

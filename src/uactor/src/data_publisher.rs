@@ -8,7 +8,10 @@ mod async_sender {
 
     pub trait DataPublisher: TryClone {
         type Item;
-        fn publish(&self, data: Self::Item) -> impl std::future::Future<Output = DataPublisherResult> + Send;
+        fn publish(
+            &self,
+            data: Self::Item,
+        ) -> impl std::future::Future<Output = DataPublisherResult> + Send;
     }
 
     #[derive(thiserror::Error, Debug)]
@@ -56,21 +59,19 @@ mod async_sender {
     pub type DataPublisherResult = Result<(), DataPublisherErrors>;
 
     impl<T> DataPublisher for mpsc::Sender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         type Item = T;
 
         async fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data)
-                .await
-                .map_err(DataPublisherErrors::from)
+            self.send(data).await.map_err(DataPublisherErrors::from)
         }
     }
 
     impl<T> TryClone for Sender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
@@ -78,20 +79,19 @@ mod async_sender {
     }
 
     impl<T> DataPublisher for mpsc::UnboundedSender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         type Item = T;
 
         async fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data)
-                .map_err(DataPublisherErrors::from)
+            self.send(data).map_err(DataPublisherErrors::from)
         }
     }
 
     impl<T> TryClone for UnboundedSender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
@@ -99,8 +99,8 @@ mod async_sender {
     }
 
     impl<T> DataPublisher for watch::Sender<T>
-        where
-            T: Send + Sync,
+    where
+        T: Send + Sync,
     {
         type Item = T;
 
@@ -110,8 +110,8 @@ mod async_sender {
     }
 
     impl<T> TryClone for watch::Sender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Err(TryCloneError::CantClone)
@@ -119,8 +119,8 @@ mod async_sender {
     }
 
     impl<T> DataPublisher for broadcast::Sender<T>
-        where
-            T: Send + Sync,
+    where
+        T: Send + Sync,
     {
         type Item = T;
 
@@ -132,8 +132,8 @@ mod async_sender {
     }
 
     impl<T> TryClone for broadcast::Sender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
@@ -191,20 +191,19 @@ mod sync_sender {
     pub type DataPublisherResult = Result<(), DataPublisherErrors>;
 
     impl<T> DataPublisher for mpsc::UnboundedSender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         type Item = T;
 
         fn publish(&self, data: Self::Item) -> DataPublisherResult {
-            self.send(data)
-                .map_err(DataPublisherErrors::from)
+            self.send(data).map_err(DataPublisherErrors::from)
         }
     }
 
     impl<T> TryClone for UnboundedSender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
@@ -212,8 +211,8 @@ mod sync_sender {
     }
 
     impl<T> DataPublisher for watch::Sender<T>
-        where
-            T: Send + Sync,
+    where
+        T: Send + Sync,
     {
         type Item = T;
 
@@ -223,8 +222,8 @@ mod sync_sender {
     }
 
     impl<T> TryClone for watch::Sender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Err(TryCloneError::CantClone)
@@ -232,8 +231,8 @@ mod sync_sender {
     }
 
     impl<T> DataPublisher for broadcast::Sender<T>
-        where
-            T: Send + Sync,
+    where
+        T: Send + Sync,
     {
         type Item = T;
 
@@ -245,8 +244,8 @@ mod sync_sender {
     }
 
     impl<T> TryClone for broadcast::Sender<T>
-        where
-            T: Send,
+    where
+        T: Send,
     {
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(self.clone())
