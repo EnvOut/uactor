@@ -1,6 +1,7 @@
-use std::sync::Arc;
-use crate::context::{ActorContext, Context};
+use crate::context::ActorContext;
 use crate::message::Message;
+use std::future::Future;
+use std::sync::Arc;
 
 pub trait State: std::any::Any + Send + 'static {}
 impl<T: std::any::Any + Send + 'static> State for T {}
@@ -18,16 +19,16 @@ where
 
     type Inject: Inject + Sized;
 
-    async fn create_state(&mut self) -> Arc<State> {
-        Arc::new(Default::default())
+    fn create_state(&mut self) -> impl Future<Output = Arc<State>> + Send {
+        async { Arc::new(Default::default()) }
     }
 
-    async fn pre_start(
+    fn pre_start(
         &mut self,
         state: &mut Self::Inject,
         ctx: &mut Self::Context,
-    ) -> ActorPreStartResult<()> {
-        Ok(())
+    ) -> impl Future<Output = ActorPreStartResult<()>> + Send {
+        async { Ok(()) }
     }
 }
 #[macro_export]
@@ -83,10 +84,10 @@ where
     M: Message,
 {
     fn send(&self, msg: M) -> crate::data_publisher::DataPublisherResult;
-    async fn ask<A>(
+    fn ask<A>(
         &self,
         f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M,
-    ) -> Result<A, crate::data_publisher::DataPublisherErrors>;
+    ) -> impl Future<Output = Result<A, crate::data_publisher::DataPublisherErrors>>;
 }
 
 #[cfg(feature = "async_sender")]

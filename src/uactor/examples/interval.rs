@@ -1,4 +1,3 @@
-use anyhow::Context;
 use time::ext::NumericalStdDuration;
 use uactor::actor::MessageSender;
 
@@ -23,7 +22,7 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, EmptyState, Handler, HandleResult};
+    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
     use uactor::context::Context;
     use uactor::message::IntervalMessage;
 
@@ -40,7 +39,12 @@ mod actor1 {
     }
 
     impl Handler<PingMsg> for Actor1 {
-        async fn handle(&mut self, _: &mut Self::Inject, ping: PingMsg, _: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            ping: PingMsg,
+            _ctx: &mut Context,
+        ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
@@ -49,9 +53,20 @@ mod actor1 {
     }
 
     impl Handler<IntervalMessage> for Actor1 {
-        async fn handle(&mut self, _: &mut Self::Inject, IntervalMessage { time: _, duration }: IntervalMessage, _: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            IntervalMessage {
+                time: _,
+                duration: _,
+            }: IntervalMessage,
+            _ctx: &mut Context,
+        ) -> HandleResult {
             self.interval_count += 1;
-            println!("actor1: received {}nd interval message", self.interval_count);
+            println!(
+                "actor1: received {}nd interval message",
+                self.interval_count
+            );
             Ok(())
         }
     }
@@ -68,13 +83,11 @@ async fn main() -> anyhow::Result<()> {
     // 1 second interval
     let interval = tokio::time::interval(1.std_seconds());
 
-    let (mut actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1, interval);
+    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1, interval);
 
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
 
-    let pong = actor1_ref
-        .ask::<PongMsg>(|reply| PingMsg(reply))
-        .await?;
+    let pong = actor1_ref.ask::<PongMsg>(PingMsg).await?;
     println!("main: received {pong:?} message");
 
     // waiting 10 seconds and expecting new message each 1 second

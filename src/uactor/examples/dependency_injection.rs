@@ -1,6 +1,4 @@
 use time::ext::NumericalStdDuration;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 use uactor::actor::MessageSender;
 
 use uactor::system::System;
@@ -36,9 +34,9 @@ mod messages {
 mod actor1 {
     use tokio::sync::mpsc::UnboundedSender;
 
-    use uactor::actor::{Actor, EmptyState, Handler, HandleResult, MessageSender};
-    use uactor::context::Context;
+    use uactor::actor::{Actor, EmptyState, HandleResult, Handler, MessageSender};
     use uactor::context::extensions::Service;
+    use uactor::context::Context;
     use uactor::di::{Inject, InjectError};
     use uactor::system::System;
 
@@ -56,11 +54,12 @@ mod actor1 {
 
     impl Inject for Services {
         async fn inject(system: &System) -> Result<Self, InjectError>
-            where
-                Self: Sized,
+        where
+            Self: Sized,
         {
             let service1 = system.get_service()?;
-            let actor2_ref = system.get_actor::<Actor2Ref<UnboundedSender<Actor2Msg>>>("actor2".into())?;
+            let actor2_ref =
+                system.get_actor::<Actor2Ref<UnboundedSender<Actor2Msg>>>("actor2".into())?;
             Ok(Services::new(service1, actor2_ref))
         }
     }
@@ -71,7 +70,12 @@ mod actor1 {
     }
 
     impl Handler<PingMsg> for Actor1 {
-        async fn handle(&mut self, Services { service1, .. }: &mut Self::Inject, ping: PingMsg, ctx: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            Services { service1, .. }: &mut Self::Inject,
+            ping: PingMsg,
+            _ctx: &mut Context,
+        ) -> HandleResult {
             println!("actor1: Received ping message");
 
             service1.do_something();
@@ -83,7 +87,12 @@ mod actor1 {
     }
 
     impl Handler<MessageWithoutReply> for Actor1 {
-        async fn handle(&mut self, Services { actor2_ref, .. }: &mut Self::Inject, msg: MessageWithoutReply, ctx: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            Services { actor2_ref, .. }: &mut Self::Inject,
+            msg: MessageWithoutReply,
+            _ctx: &mut Context,
+        ) -> HandleResult {
             println!("actor1: Received {msg:?} message, sending PrintMessage to the actor2");
             actor2_ref.send(PrintMessage::new(msg.into()))?;
             Ok(())
@@ -91,13 +100,12 @@ mod actor1 {
     }
 
     uactor::generate_actor_ref!(Actor1, { PingMsg, MessageWithoutReply }, EmptyState);
-
 }
 
 mod actor2 {
-    use uactor::actor::{Actor, EmptyState, Handler, HandleResult};
-    use uactor::context::Context;
+    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
     use uactor::context::extensions::Service;
+    use uactor::context::Context;
     use uactor::di::{Inject, InjectError};
     use uactor::system::System;
 
@@ -111,8 +119,8 @@ mod actor2 {
 
     impl Inject for Services {
         async fn inject(system: &System) -> Result<Self, InjectError>
-            where
-                Self: Sized,
+        where
+            Self: Sized,
         {
             let service2 = system.get_service::<Service2>()?;
             Ok(Services(service2))
@@ -125,7 +133,12 @@ mod actor2 {
     }
 
     impl Handler<PingMsg> for Actor2 {
-        async fn handle(&mut self, Services(service2): &mut Self::Inject, ping: PingMsg, _: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            Services(service2): &mut Self::Inject,
+            ping: PingMsg,
+            _ctx: &mut Context,
+        ) -> HandleResult {
             println!("actor2: Received ping message");
 
             service2.do_something();
@@ -137,7 +150,12 @@ mod actor2 {
     }
 
     impl Handler<PrintMessage> for Actor2 {
-        async fn handle(&mut self, _: &mut Self::Inject, msg: PrintMessage, _: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            msg: PrintMessage,
+            _ctx: &mut Context,
+        ) -> HandleResult {
             println!("actor2: Received message: {msg:?}");
             Ok(())
         }
@@ -192,25 +210,21 @@ async fn main() -> anyhow::Result<()> {
     let actor2 = Actor2;
     let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
 
-
     // Run actors
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
     system.run_actor::<Actor2>(actor2_ref.name()).await?;
 
     // Case #1: send messages and call injected (not from &self) services inside handlers
-    println!("-- Case #1: send messages and call injected (not from &self) services inside handlers");
-    let pong1 = actor1_ref
-        .ask::<PongMsg>(|reply| PingMsg(reply))
-        .await?;
-    let pong2 = actor2_ref
-        .ask::<PongMsg>(|reply| PingMsg(reply))
-        .await?;
+    println!(
+        "-- Case #1: send messages and call injected (not from &self) services inside handlers"
+    );
+    let pong1 = actor1_ref.ask::<PongMsg>(PingMsg).await?;
+    let pong2 = actor2_ref.ask::<PongMsg>(PingMsg).await?;
     println!("main: received {pong1:?} and {pong2:?} messages");
 
     // Case #2: send message#1 to actor1 and reply to actor2 without actor2 reference inside message#1
     println!("\n-- Case #2: send message#1 to actor1 and reply to actor2 without actor2 reference inside message#1");
-    let pong1 = actor1_ref
-        .send(MessageWithoutReply("login:password".to_owned()))?;
+    actor1_ref.send(MessageWithoutReply("login:password".to_owned()))?;
 
     tokio::time::sleep(1.std_milliseconds()).await;
     Ok(())

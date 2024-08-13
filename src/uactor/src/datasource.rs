@@ -38,8 +38,8 @@ pub trait DataSource {
 }
 
 impl<T> DataSource for mpsc::Receiver<T>
-    where
-        T: Send,
+where
+    T: Send,
 {
     type Item = T;
 
@@ -53,8 +53,8 @@ impl<T> DataSource for mpsc::Receiver<T>
 }
 
 impl<T> DataSource for mpsc::UnboundedReceiver<T>
-    where
-        T: Send,
+where
+    T: Send,
 {
     type Item = T;
 
@@ -68,14 +68,13 @@ impl<T> DataSource for mpsc::UnboundedReceiver<T>
 }
 
 impl<T> DataSource for watch::Receiver<T>
-    where
-        T: Clone + Send + Sync,
+where
+    T: Clone + Send + Sync,
 {
     type Item = T;
 
     async fn next(&mut self) -> DataSourceResult<Self::Item> {
-        let _ = self
-            .changed()
+        self.changed()
             .await
             .map_err(|_| DataSourceErrors::ChannelClosed)?;
         let value = self.borrow().clone();
@@ -84,8 +83,8 @@ impl<T> DataSource for watch::Receiver<T>
 }
 
 impl<T> DataSource for broadcast::Receiver<T>
-    where
-        T: Clone + Send + Sync,
+where
+    T: Clone + Send + Sync,
 {
     type Item = T;
 
@@ -95,8 +94,8 @@ impl<T> DataSource for broadcast::Receiver<T>
 }
 
 impl<T> DataSource for oneshot::Receiver<T>
-    where
-        T: Send,
+where
+    T: Send,
 {
     type Item = T;
 
@@ -118,7 +117,7 @@ impl DataSource for Interval {
 }
 
 pub struct TokioTcpListenerDataSource {
-    tcp_listener: TcpListener
+    tcp_listener: TcpListener,
 }
 
 impl TokioTcpListenerDataSource {
@@ -127,9 +126,7 @@ impl TokioTcpListenerDataSource {
 
         let tcp_listener = TcpListener::bind(&addr).await.unwrap();
 
-        Self {
-            tcp_listener
-        }
+        Self { tcp_listener }
     }
 }
 
@@ -137,7 +134,11 @@ impl DataSource for TokioTcpListenerDataSource {
     type Item = (TcpStream, std::net::SocketAddr);
 
     async fn next(&mut self) -> DataSourceResult<Self::Item> {
-        let socket_addr = self.tcp_listener.accept().await.map_err(DataSourceErrors::IoError)?;
+        let socket_addr = self
+            .tcp_listener
+            .accept()
+            .await
+            .map_err(DataSourceErrors::IoError)?;
 
         Ok(socket_addr)
     }

@@ -1,4 +1,3 @@
-use std::ops::Shl;
 use std::time::Duration;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -26,12 +25,12 @@ mod messages {
 }
 
 mod actor1 {
-    use tokio::sync::mpsc;
-    use uactor::actor::{Actor, EmptyState, Handler, HandleResult, MessageSender};
-    use uactor::context::ActorContext;
-    use uactor::context::supervised::SupervisedContext;
     use crate::messages::{PingMsg, PongMsg};
     use crate::supervisor::{SupervisorMsg, SupervisorRef};
+    use tokio::sync::mpsc;
+    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
+    use uactor::context::supervised::SupervisedContext;
+    use uactor::context::ActorContext;
 
     pub struct Actor1;
 
@@ -41,7 +40,12 @@ mod actor1 {
     }
 
     impl Handler<PingMsg> for Actor1 {
-        async fn handle(&mut self, _: &mut Self::Inject, ping: PingMsg, ctx: &mut Self::Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            ping: PingMsg,
+            ctx: &mut Self::Context,
+        ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
@@ -54,9 +58,8 @@ mod actor1 {
 }
 
 mod supervisor {
-    use uactor::actor::{Actor, EmptyState, Handler, HandleResult, MessageSender};
+    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
     use uactor::context::{ActorDied, Context};
-    use uactor::data_publisher::{DataPublisher, DataPublisherResult, TryClone};
 
     pub struct Supervisor;
 
@@ -66,7 +69,12 @@ mod supervisor {
     }
 
     impl Handler<ActorDied> for Supervisor {
-        async fn handle(&mut self, _: &mut Self::Inject, ActorDied(name): ActorDied, _: &mut Context) -> HandleResult {
+        async fn handle(
+            &mut self,
+            _: &mut Self::Inject,
+            ActorDied(name): ActorDied,
+            _: &mut Context,
+        ) -> HandleResult {
             println!("Actor with name: {name:?} - died");
             Ok(())
         }
@@ -90,11 +98,12 @@ async fn main() -> anyhow::Result<()> {
     let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
     let (supervisor_ref, _) = uactor::spawn_with_ref!(system, supervisor: Supervisor);
 
-    system.run_actor::<Supervisor>(supervisor_ref.name()).await?;
+    system
+        .run_actor::<Supervisor>(supervisor_ref.name())
+        .await?;
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
 
-    let pong = actor1_ref.ask(|reply| PingMsg(reply))
-        .await?;
+    let pong = actor1_ref.ask(PingMsg).await?;
     println!("main: received {pong:?} message");
 
     tokio::time::sleep(Duration::from_secs(1)).await;
