@@ -22,7 +22,7 @@ pub trait ActorContext: Sized + Unpin + 'static {
     fn kill(&mut self);
     fn get_name(&self) -> &str;
     #[allow(clippy::wrong_self_convention)]
-    fn is_alive(&mut self) -> bool {
+    fn is_alive(&self) -> bool {
         true
     }
     fn create(
@@ -54,7 +54,7 @@ impl ActorContext for Context {
         &self.name
     }
 
-    fn is_alive(&mut self) -> bool {
+    fn is_alive(&self) -> bool {
         self.alive
     }
 
@@ -100,7 +100,7 @@ pub mod supervised {
             &self.name
         }
 
-        fn is_alive(&mut self) -> bool {
+        fn is_alive(&self) -> bool {
             self.alive
         }
 

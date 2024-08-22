@@ -7,7 +7,7 @@ license = "MIT"
 readme = "../../README.md"
 keywords = ["actor", "actor-system", "stream", "actor-stream", "spawn-process"]
 workspace = "../../"
-description = "The fastest and most modular actor system that doesn’t force you to pay for what you don’t need"
+description = "The fastest and most modular actor system that doesn't force you to pay for what you don't need"
 
 [dependencies]
 tokio = { workspace = true }
