@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.10.3"
+version = "0.10.4"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -16,8 +16,11 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 paste = "1.0"
 derive_more = { workspace = true }
+derive-new = { workspace = true }
 bytes = { version = "1", optional = true }
 rand = "0.8"
+
+either = "1.13.0"
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3" }
@@ -26,7 +29,19 @@ time = "0.3"
 tokio.workspace = true
 
 [[example]]
-name = "base_sample"
+name = "multiple_incoming_channels"
+
+[[example]]
+name = "dependency_injection"
+
+[[example]]
+name = "interval"
+
+[[example]]
+name = "single_channel_actor"
+
+[[example]]
+name = "supervised_actor"
 
 [features]
 default = ["tokio_tracing"]

@@ -9,11 +9,9 @@ use crate::actor1::Actor1Ref;
 use crate::messages::{PingMsg, PongMsg};
 
 mod messages {
-    use tokio::sync::oneshot::Sender;
+    use uactor::message::{Message, Reply};
 
-    use uactor::message::Message;
-
-    pub struct PingMsg(pub Sender<PongMsg>);
+    pub struct PingMsg(pub Reply<PongMsg>);
 
     #[derive(Debug)]
     pub struct PongMsg;

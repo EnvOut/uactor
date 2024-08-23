@@ -22,7 +22,8 @@ tracing = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 
-strum = { version = "0.25", features = ["derive"] }
-strum_macros = "0.25"
+strum = { version = "0.26", features = ["derive"] }
+strum_macros = "0.26"
 
-derive_more = "0.99"
+derive_more = { version = "1", features = ["full"] }
+derive-new = "0.6.0"

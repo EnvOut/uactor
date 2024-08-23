@@ -136,20 +136,20 @@ impl System {
         <A as Actor>::Inject: Inject + Sized + Send,
     {
         if let Some(tx) = self.initialized_actors.remove(&actor_name) {
-            let state_res = A::Inject::inject(self).await;
+            let injected_dependencies = A::Inject::inject(self).await;
 
             let ctx = A::Context::create(self, actor_name.clone())
                 .await
                 .map_err(ActorRunningError::ContextError)?;
 
-            if let Err(err) = state_res.as_ref() {
+            if let Err(err) = injected_dependencies.as_ref() {
                 tracing::error!(
                     "Can't inject dependencies for {actor_name:?}, actor not started. Err: {err:?}"
                 )
             }
-            let state = state_res?;
+            let injected_dependencies = injected_dependencies?;
 
-            if tx.send(Box::new((state, ctx))).is_err() {
+            if tx.send(Box::new((injected_dependencies, ctx))).is_err() {
                 return Err(ActorRunningError::Dropped(actor_name.clone()));
             }
         } else {

@@ -108,21 +108,27 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Initialize channels
     let (ping_tx, ping_rx) = tokio::sync::mpsc::channel::<PingPongMsg>(10);
     let (req_tx, req_rx) = tokio::sync::mpsc::channel::<ReqMsg>(10);
     let (resp_tx, resp_rx) = tokio::sync::mpsc::channel::<RespMsg>(10);
 
+    // Initialize actors
     let actor1 = Actor1 { resp_tx };
     let actor2 = Actor2;
 
+    // Initialize system
     let mut system = System::global().build();
 
+    // Initialize actors
     let (actor1_name, handle1) = system.init_actor(actor1, None, (ping_rx, req_rx));
     let (actor2_name, handle2) = system.init_actor(actor2, None, resp_rx);
 
+    // Run actors
     system.run_actor::<Actor1>(actor1_name).await.unwrap();
     system.run_actor::<Actor2>(actor2_name).await.unwrap();
 
+    // Send messages
     ping_tx.send(PingPongMsg::Ping).await.unwrap();
     req_tx.send(ReqMsg::GET).await.unwrap();
 

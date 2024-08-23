@@ -13,11 +13,9 @@ use crate::messages::{MessageWithoutReply, PingMsg, PongMsg};
 use crate::services::{Service1, Service2};
 
 mod messages {
-    use tokio::sync::oneshot::Sender;
+    use uactor::message::{Message, Reply};
 
-    use uactor::message::Message;
-
-    pub struct PingMsg(pub Sender<PongMsg>);
+    pub struct PingMsg(pub Reply<PongMsg>);
 
     #[derive(derive_more::Into, Debug)]
     pub struct MessageWithoutReply(pub String);
