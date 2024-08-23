@@ -26,7 +26,7 @@ mod actor1 {
     use crate::messages::{PingMsg, PongMsg};
     use crate::supervisor::{SupervisorMsg, SupervisorRef};
     use tokio::sync::mpsc;
-    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
+    use uactor::actor::{Actor, HandleResult, Handler};
     use uactor::context::supervised::SupervisedContext;
     use uactor::context::ActorContext;
 
@@ -35,6 +35,7 @@ mod actor1 {
     impl Actor for Actor1 {
         type Context = SupervisedContext<SupervisorRef<mpsc::UnboundedSender<SupervisorMsg>>>;
         type Inject = ();
+        type State = ();
     }
 
     impl Handler<PingMsg> for Actor1 {
@@ -43,6 +44,7 @@ mod actor1 {
             _: &mut Self::Inject,
             ping: PingMsg,
             ctx: &mut Self::Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
@@ -52,11 +54,12 @@ mod actor1 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor1, { PingMsg }, EmptyState);
+    uactor::generate_actor_ref!(Actor1, { PingMsg });
 }
 
 mod supervisor {
-    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
+    use std::os::macos::raw::stat;
+    use uactor::actor::{Actor, HandleResult, Handler};
     use uactor::context::{ActorDied, Context};
 
     pub struct Supervisor;
@@ -64,6 +67,7 @@ mod supervisor {
     impl Actor for Supervisor {
         type Context = Context;
         type Inject = ();
+        type State = ();
     }
 
     impl Handler<ActorDied> for Supervisor {
@@ -72,13 +76,14 @@ mod supervisor {
             _: &mut Self::Inject,
             ActorDied(name): ActorDied,
             _: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("Actor with name: {name:?} - died");
             Ok(())
         }
     }
 
-    uactor::generate_actor_ref!(Supervisor, { ActorDied }, EmptyState);
+    uactor::generate_actor_ref!(Supervisor, { ActorDied });
 }
 
 #[tokio::main]

@@ -10,22 +10,21 @@ pub type ActorPreStartResult<T> = Result<T, Box<dyn std::error::Error + Send + S
 use crate::di::Inject;
 
 #[allow(unused_variables)]
-pub trait Actor<State = ()>: Sized + Unpin + 'static
-where
-    State: Default,
-{
+pub trait Actor: Sized + Unpin + 'static {
     /// Actor execution context type
     type Context: ActorContext + Send;
 
     type Inject: Inject + Sized;
 
-    fn create_state(&mut self) -> impl Future<Output = Arc<State>> + Send {
-        async { Arc::new(Default::default()) }
+    type State: Default + Send + Sync;
+
+    fn create_state(&mut self) -> Arc<Self::State> {
+        Arc::new(Default::default())
     }
 
     fn pre_start(
         &mut self,
-        state: &mut Self::Inject,
+        inject: &mut Self::Inject,
         ctx: &mut Self::Context,
     ) -> impl Future<Output = ActorPreStartResult<()>> + Send {
         async { Ok(()) }
@@ -36,8 +35,8 @@ macro_rules! spawn_with_ref {
     ($S: ident, $ActorName: ident, $ActorInstance: ident: $ActorType: ident, $($Timeout: ident),*) => {{
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some($ActorName.to_owned()), ($($Timeout,)* rx));
-            let actor_ref = [<$ActorType Ref>]::new(name, tx, std::sync::Arc::new(Default::default()));
+            let (name, shared_state, handle): (std::sync::Arc<str>, std::sync::Arc<<$ActorType as uactor::actor::Actor>::State>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some($ActorName.to_owned()), ($($Timeout,)* rx));
+            let actor_ref = [<$ActorType Ref>]::new(name, tx, shared_state);
             $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
             (actor_ref, handle)
         }
@@ -48,8 +47,8 @@ macro_rules! spawn_with_ref {
 
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), ($($Timeout,)* rx));
-            let actor_ref = [<$ActorType Ref>]::new(name, tx, std::sync::Arc::new(Default::default()));
+            let (name, shared_state, handle): (std::sync::Arc<str>, std::sync::Arc<<$ActorType as uactor::actor::Actor>::State>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), ($($Timeout,)* rx));
+            let actor_ref = [<$ActorType Ref>]::new(name, tx, shared_state);
             $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
             (actor_ref, handle)
         }
@@ -59,8 +58,8 @@ macro_rules! spawn_with_ref {
         let actor_name: std::sync::Arc<str> = stringify!($ActorInstance).into();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), (rx));
-            let actor_ref = [<$ActorType Ref>]::new(name, tx, std::sync::Arc::new(Default::default()));
+            let (name, shared_state, handle): (std::sync::Arc<str>, std::sync::Arc<<$ActorType as uactor::actor::Actor>::State>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), (rx));
+            let actor_ref = [<$ActorType Ref>]::new(name, tx, shared_state);
             $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
             (actor_ref, handle)
         }
@@ -70,8 +69,8 @@ macro_rules! spawn_with_ref {
         let actor_name: std::sync::Arc<str> = stringify!($ActorInstance).into();
         uactor::paste! {
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<[<$ActorType Msg>]>();
-            let (name, handle): (std::sync::Arc<str>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), (rx));
-            let actor_ref = [<$ActorType Ref>]::new(name, tx, std::sync::Arc::new(Default::default()));
+            let (name, shared_state, handle): (std::sync::Arc<str>, std::sync::Arc<<$ActorType as uactor::actor::Actor>::State>, tokio::task::JoinHandle<()>) = $S.init_actor($ActorInstance, Some(actor_name), (rx));
+            let actor_ref = [<$ActorType Ref>]::new(name, tx, shared_state);
             $S.insert_actor(actor_ref.name(), uactor::data_publisher::TryClone::try_clone(&actor_ref)?);
             (actor_ref, handle)
         }
@@ -106,30 +105,27 @@ pub trait NamedActorRef {
     fn static_name() -> &'static str;
 }
 
-pub type EmptyState = ();
-
 /// Example:
 /// ```
 ///# use std::future::Future;
 /// use uactor::actor::{Actor, HandleResult};
 /// use uactor::context::Context;
 /// use uactor::system::System;
-/// use uactor::actor::EmptyState;
 /// let mut system = System::global().build();
 /// pub struct Actor1;
-/// impl Actor for Actor1 { type Context = Context; type Inject = (); }
+/// impl Actor for Actor1 { type Context = Context; type Inject = (); type State = (); }
 /// let actor1 = Actor1;
 /// use uactor::message::{Message};
 /// use uactor::message_impl;
 /// pub struct Ping;
 /// impl Message for Ping { fn static_name() -> &'static str { "Ping" } }
-/// impl uactor::actor::Handler<Ping> for Actor1 { async fn handle(&mut self, inject: &mut Self::Inject, msg: Ping, ctx: &mut Self::Context) -> HandleResult { todo!() }  }
-/// uactor::generate_actor_ref!(Actor1, { }, EmptyState);
+/// impl uactor::actor::Handler<Ping> for Actor1 { async fn handle(&mut self, inject: &mut Self::Inject, msg: Ping, ctx: &mut Self::Context, state: &Self::State) -> HandleResult { todo!() }  }
+/// uactor::generate_actor_ref!(Actor1, { });
 /// ```
 /// let (mut actor1_ref, handle) = uactor::spawn_with_ref!(system, actor1: Actor1);
 #[macro_export]
 macro_rules! generate_actor_ref {
-    ($ActorType: ident, { $($Message: ident),* }, $ActorState: ident) => {
+    ($ActorType: ident, { $($Message: ident),* }) => {
         uactor::paste! {
             pub enum [<$ActorType Msg>] {
                 $($Message($Message)),*
@@ -157,11 +153,19 @@ macro_rules! generate_actor_ref {
             }
 
             impl uactor::actor::Handler<[<$ActorType Msg>]> for $ActorType {
-                async fn handle(&mut self, inject: &mut  <Self as uactor::actor::Actor>::Inject, msg: [<$ActorType Msg>], ctx: &mut <Self as uactor::actor::Actor>::Context) -> uactor::actor::HandleResult {
+                async fn handle(
+                    &mut self,
+                    inject: &mut <Self as uactor::actor::Actor>::Inject,
+                    msg: [<$ActorType Msg>],
+                    ctx: &mut <Self as uactor::actor::Actor>::Context,
+                    state: &<$ActorType as uactor::actor::Actor>::State,
+                    // state: &std::sync::Arc<AState>
+                    // state: &Arc<{Self as uactor::actor::Actor}>::State
+                ) -> uactor::actor::HandleResult {
                     match msg {
                         $(
                         [<$ActorType Msg>]::$Message(m) => {
-                            self.handle(inject, m, ctx).await?;
+                            self.handle(inject, m, ctx, state).await?;
                         }
                         ),*
                     }
@@ -171,7 +175,7 @@ macro_rules! generate_actor_ref {
 
             pub struct [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
                 name: std::sync::Arc<str>,
-                state: std::sync::Arc<$ActorState>,
+                state: std::sync::Arc<<$ActorType as uactor::actor::Actor>::State>,
                 sender: T,
             }
 
@@ -218,7 +222,7 @@ macro_rules! generate_actor_ref {
             )*
 
             impl<T> [<$ActorType Ref>]<T> where T: uactor::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
-                pub fn new(name: std::sync::Arc<str>, sender: T, state: std::sync::Arc<$ActorState>) -> Self {
+                pub fn new(name: std::sync::Arc<str>, sender: T, state: std::sync::Arc<<$ActorType as uactor::actor::Actor>::State>) -> Self {
                     let name = std::sync::Arc::from(name);
                     Self { name, sender, state }
                 }
@@ -227,7 +231,7 @@ macro_rules! generate_actor_ref {
                     self.name.clone()
                 }
 
-                pub fn state(&self) -> &$ActorState {
+                pub fn state(&self) -> &<$ActorType as uactor::actor::Actor>::State {
                     &self.state
                 }
             }
@@ -247,7 +251,8 @@ where
         inject: &mut Self::Inject,
         msg: M,
         ctx: &mut Self::Context,
-    ) -> impl std::future::Future<Output = HandleResult> + Send;
+        state: &Self::State,
+    ) -> impl Future<Output = HandleResult> + Send;
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;

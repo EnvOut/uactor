@@ -8,6 +8,7 @@ pub trait ActorSelect<A: Actor + Send> {
         &mut self,
         inject: &mut A::Inject,
         ctx: &mut <A as Actor>::Context,
+        state: &<A as Actor>::State,
         actor: &mut A,
     ) -> impl std::future::Future<Output = SelectResult> + Send;
 }
@@ -30,12 +31,12 @@ mod select_from_tuple {
                     A: $(Handler<$T::Item> + )* Send,
                     <A as Actor>::Inject: Send
             {
-                async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, actor: &mut A) -> SelectResult {
+                async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, state: &<A as Actor>::State, actor: &mut A) -> SelectResult {
                     let ($($T, )*) = self;
                     tokio::select! {
                         $(
                         Ok(msg) = $T.next() => {
-                            let _ = actor.handle(inject, msg, ctx).await?;
+                            let _ = actor.handle(inject, msg, ctx, state).await?;
                         }
                         )*
                     }
@@ -53,6 +54,7 @@ mod select_from_tuple {
             &mut self,
             _: &mut A::Inject,
             _: &mut <A as Actor>::Context,
+            _: &<A as Actor>::State,
             _: &mut A,
         ) -> SelectResult {
             pending::<SelectResult>().await
@@ -71,12 +73,13 @@ mod select_from_tuple {
             &mut self,
             inject: &mut A::Inject,
             ctx: &mut <A as Actor>::Context,
+            state: &<A as Actor>::State,
             actor: &mut A,
         ) -> SelectResult {
             // let message_name = <S1 as DataSource>::Item::static_name();
             let _: &'static str = type_name::<<S1 as DataSource>::Item>();
             if let Ok(msg) = self.next().await {
-                actor.handle(inject, msg, ctx).await?;
+                actor.handle(inject, msg, ctx, state).await?;
             } else {
                 tracing::error!("Channel closed");
             }

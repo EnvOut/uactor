@@ -32,7 +32,7 @@ mod messages {
 mod actor1 {
     use tokio::sync::mpsc::UnboundedSender;
 
-    use uactor::actor::{Actor, EmptyState, HandleResult, Handler, MessageSender};
+    use uactor::actor::{Actor, HandleResult, Handler, MessageSender};
     use uactor::context::extensions::Service;
     use uactor::context::Context;
     use uactor::di::{Inject, InjectError};
@@ -65,6 +65,7 @@ mod actor1 {
     impl Actor for Actor1 {
         type Context = Context;
         type Inject = Services;
+        type State = ();
     }
 
     impl Handler<PingMsg> for Actor1 {
@@ -73,6 +74,7 @@ mod actor1 {
             Services { service1, .. }: &mut Self::Inject,
             ping: PingMsg,
             _ctx: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
 
@@ -90,6 +92,7 @@ mod actor1 {
             Services { actor2_ref, .. }: &mut Self::Inject,
             msg: MessageWithoutReply,
             _ctx: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received {msg:?} message, sending PrintMessage to the actor2");
             actor2_ref.send(PrintMessage::new(msg.into()))?;
@@ -97,11 +100,11 @@ mod actor1 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor1, { PingMsg, MessageWithoutReply }, EmptyState);
+    uactor::generate_actor_ref!(Actor1, { PingMsg, MessageWithoutReply });
 }
 
 mod actor2 {
-    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
+    use uactor::actor::{Actor, HandleResult, Handler};
     use uactor::context::extensions::Service;
     use uactor::context::Context;
     use uactor::di::{Inject, InjectError};
@@ -128,6 +131,7 @@ mod actor2 {
     impl Actor for Actor2 {
         type Context = Context;
         type Inject = Services;
+        type State = ();
     }
 
     impl Handler<PingMsg> for Actor2 {
@@ -136,6 +140,7 @@ mod actor2 {
             Services(service2): &mut Self::Inject,
             ping: PingMsg,
             _ctx: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor2: Received ping message");
 
@@ -153,13 +158,14 @@ mod actor2 {
             _: &mut Self::Inject,
             msg: PrintMessage,
             _ctx: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor2: Received message: {msg:?}");
             Ok(())
         }
     }
 
-    uactor::generate_actor_ref!(Actor2, { PingMsg, PrintMessage }, EmptyState);
+    uactor::generate_actor_ref!(Actor2, { PingMsg, PrintMessage });
 }
 
 pub mod services {

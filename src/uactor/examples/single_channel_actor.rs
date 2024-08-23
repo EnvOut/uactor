@@ -18,7 +18,7 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
+    use uactor::actor::{Actor, HandleResult, Handler};
     use uactor::context::Context;
 
     use crate::messages::{PingMsg, PongMsg};
@@ -28,6 +28,7 @@ mod actor1 {
     impl Actor for Actor1 {
         type Context = Context;
         type Inject = ();
+        type State = ();
     }
 
     impl Handler<PingMsg> for Actor1 {
@@ -36,6 +37,7 @@ mod actor1 {
             _: &mut Self::Inject,
             ping: PingMsg,
             _: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
@@ -44,7 +46,7 @@ mod actor1 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor1, { PingMsg }, EmptyState);
+    uactor::generate_actor_ref!(Actor1, { PingMsg });
 }
 
 #[tokio::main]
@@ -54,7 +56,6 @@ async fn main() -> anyhow::Result<()> {
     let mut system = System::global().build();
 
     let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
-
     system.run_actor::<Actor1>(actor1_ref.name()).await?;
 
     let pong = actor1_ref.ask(PingMsg).await?;

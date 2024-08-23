@@ -47,6 +47,7 @@ pub mod actor1 {
     impl Actor for Actor1 {
         type Context = Context;
         type Inject = ();
+        type State = ();
     }
 
     impl Handler<PingPongMsg> for Actor1 {
@@ -55,6 +56,7 @@ pub mod actor1 {
             _: &mut Self::Inject,
             msg: PingPongMsg,
             _ctx: &mut Self::Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor1 handle PingPongMsg: {msg:?}");
             Ok(())
@@ -67,6 +69,7 @@ pub mod actor1 {
             _: &mut Self::Inject,
             msg: ReqMsg,
             _ctx: &mut Self::Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor1 handle ReqMsg: {msg:?}");
             self.resp_tx.send(RespMsg::Ok).await?;
@@ -89,6 +92,7 @@ pub mod actor2 {
             _: &mut Self::Inject,
             msg: RespMsg,
             _: &mut Self::Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor2 handle RespMsg: {msg:?}");
             Ok(())
@@ -98,6 +102,7 @@ pub mod actor2 {
     impl Actor for Actor2 {
         type Context = Context;
         type Inject = ();
+        type State = ();
     }
 }
 
@@ -121,8 +126,8 @@ async fn main() {
     let mut system = System::global().build();
 
     // Initialize actors
-    let (actor1_name, handle1) = system.init_actor(actor1, None, (ping_rx, req_rx));
-    let (actor2_name, handle2) = system.init_actor(actor2, None, resp_rx);
+    let (actor1_name, shared_state, handle1) = system.init_actor(actor1, None, (ping_rx, req_rx));
+    let (actor2_name, shared_state, handle2) = system.init_actor(actor2, None, resp_rx);
 
     // Run actors
     system.run_actor::<Actor1>(actor1_name).await.unwrap();

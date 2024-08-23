@@ -166,7 +166,7 @@ impl System {
         mut actor: A,
         actor_name: Option<Arc<str>>,
         mut select: S,
-    ) -> (Arc<str>, JoinHandle<()>)
+    ) -> (Arc<str>, Arc<A::State>, JoinHandle<()>)
     where
         A: Actor + Send,
         S: ActorSelect<A> + Send + 'static,
@@ -178,59 +178,65 @@ impl System {
             let type_name = utils::type_name::<A>();
             format!("{}-{}", type_name, (&type_name as *const String as i32)).into()
         });
-        let (actor_state_tx, actor_state_rx) = oneshot::channel::<Box<dyn Any + Send>>();
+        let (actor_inject_tx, actor_inject_rx) = oneshot::channel::<Box<dyn Any + Send>>();
 
-        self.initialized_actors
-            .insert(actor_name.clone(), actor_state_tx);
+        self.initialized_actors.insert(actor_name.clone(), actor_inject_tx);
 
-        let name = actor_name.clone();
-        let handle = tokio::spawn(async move {
-            tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, name);
+        let shared_state = actor.create_state();
 
-            if let Ok(boxed_state) = actor_state_rx.await {
-                let (mut state, mut ctx) = {
-                    let boxed_state = boxed_state
-                        .downcast::<(<A as Actor>::Inject, <A as Actor>::Context)>()
-                        .expect("failed to downcast state");
-                    *boxed_state
-                };
+        let handle = {
+            let actor_name = actor_name.clone();
+            let shared_state = shared_state.clone();
 
-                // call on_start
-                match ctx.on_start() {
-                    Ok(_) => {
-                        tracing::trace!("Starting the actor: {name:?}");
+            tokio::spawn(async move {
+                tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, actor_name);
+
+                if let Ok(boxed_state) = actor_inject_rx.await {
+                    let (mut state, mut ctx) = {
+                        let boxed_state = boxed_state
+                            .downcast::<(<A as Actor>::Inject, <A as Actor>::Context)>()
+                            .expect("failed to downcast state");
+                        *boxed_state
+                    };
+
+                    // call on_start
+                    match ctx.on_start() {
+                        Ok(_) => {
+                            tracing::trace!("Starting the actor: {actor_name:?}");
+                        }
+                        Err(err) => {
+                            tracing::error!("Error during actor start: {err:?}");
+                            ctx.kill();
+                        }
                     }
-                    Err(err) => {
-                        tracing::error!("Error during actor start: {err:?}");
-                        ctx.kill();
+
+                    // main loop
+                    while ctx.is_alive() {
+                        tracing::trace!("iteration of the process: {actor_name:?}");
+                        let res = select.select(&mut state, &mut ctx, &shared_state, &mut actor).await;
+
+                        if let Err(err) = res {
+                            tracing::error!("An error occurred while message handling by the \"{}\", error message: \"{}\"", ctx.get_name(), err);
+                        } else {
+                            tracing::trace!("{actor_name:?} successful iteration");
+                        }
                     }
+                    // call on_die
+                    match ctx.on_die(actor_name.clone()) {
+                        Ok(_) => {
+                            tracing::trace!("The actor: {actor_name:?} is dead");
+                        }
+                        Err(err) => {
+                            tracing::error!("Error during actor die: {err:?}");
+                        }
+                    }
+                } else {
+                    tracing::error!("Can't run {actor_name:?}, system dropped");
                 }
+            })
+        };
 
-                // main loop
-                while ctx.is_alive() {
-                    tracing::trace!("iteration of the process: {name:?}");
-                    let res = select.select(&mut state, &mut ctx, &mut actor).await;
-
-                    if let Err(err) = res {
-                        tracing::error!("An error occurred while message handling by the \"{}\", error message: \"{}\"", ctx.get_name(), err);
-                    } else {
-                        tracing::trace!("{name:?} successful iteration");
-                    }
-                }
-                // call on_die
-                match ctx.on_die(name.clone()) {
-                    Ok(_) => {
-                        tracing::trace!("The actor: {name:?} is dead");
-                    }
-                    Err(err) => {
-                        tracing::error!("Error during actor die: {err:?}");
-                    }
-                }
-            } else {
-                tracing::error!("Can't run {name:?}, system dropped");
-            }
-        });
-        (actor_name, handle)
+        (actor_name, shared_state, handle)
     }
 }
 

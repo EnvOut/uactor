@@ -20,7 +20,7 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, EmptyState, HandleResult, Handler};
+    use uactor::actor::{Actor, HandleResult, Handler};
     use uactor::context::Context;
     use uactor::message::IntervalMessage;
 
@@ -34,6 +34,7 @@ mod actor1 {
     impl Actor for Actor1 {
         type Context = Context;
         type Inject = ();
+        type State = ();
     }
 
     impl Handler<PingMsg> for Actor1 {
@@ -42,6 +43,7 @@ mod actor1 {
             _: &mut Self::Inject,
             ping: PingMsg,
             _ctx: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
@@ -59,6 +61,7 @@ mod actor1 {
                 duration: _,
             }: IntervalMessage,
             _ctx: &mut Context,
+            state: &Self::State,
         ) -> HandleResult {
             self.interval_count += 1;
             println!(
@@ -69,7 +72,7 @@ mod actor1 {
         }
     }
 
-    uactor::generate_actor_ref!(Actor1, { PingMsg }, EmptyState);
+    uactor::generate_actor_ref!(Actor1, { PingMsg });
 }
 
 #[tokio::main]
