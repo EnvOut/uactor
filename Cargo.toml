@@ -4,7 +4,7 @@ members = [
     "src/uactor",
     "experiments/actix-mpv",
     "experiments/tokio_play",
-    "experiments/toactor_play",
+    "experiments/toactor_play", "src/theatre", "experiments/tokio_actors",
 ]
 
 [workspace.dependencies]

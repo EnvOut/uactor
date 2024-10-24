@@ -1,0 +1,21 @@
+[package]
+name = "theatre"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+futures = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+paste = "1.0"
+derive_more = { workspace = true }
+derive-new = { workspace = true }
+bytes = { version = "1", optional = true }
+rand = "0.8"
+
+uuid = { version = "1.11.0", features = ["v4"] }
+
+uactor = { path = "../uactor" }
+
+either = "1.13.0"

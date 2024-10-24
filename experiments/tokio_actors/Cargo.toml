@@ -1,0 +1,10 @@
+[package]
+name = "tokio_actors"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+futures = { workspace = true }
+tokio-stream = { version = "0.1", features = ["sync"] }
+async-trait = "0.1"
