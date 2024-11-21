@@ -1,9 +1,18 @@
-use crate::actor1::{Actor1, Actor1Messages};
-use crate::actor2::{Actor2Impl, Actor2Messages};
+// use crate::actor1::{Actor1, Actor1LocalProxy, Actor1Messages};
+// use crate::actor2::{Actor2Impl, Actor2Messages};
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::time::{sleep, Duration};
+use crate::actor1::{Actor1, Actor1LocalProxy, Actor1Messages};
+use crate::actor2::Actor2Messages;
+
+pub mod example;
+
+fn main() {
+
+}
 
 pub mod actor1 {
+    use std::future::Future;
     use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
     use crate::actor2::{Actor2, Actor2LocalProxy, Actor2Messages};
 
@@ -15,6 +24,11 @@ pub mod actor1 {
     pub trait Actor1 {
         async fn handle_ping(&mut self, msg: ()) -> ();
         async fn ping_counter(&mut self, msg: ()) -> usize;
+    }
+
+    pub trait Actor1Ref {
+        fn handle_ping(&self, msg: ()) -> Result<(), ()>;
+        fn ping_counter(&self, msg: ()) -> impl Future<Output=Result<usize, ()>> + '_;
     }
 
     pub async fn run_actor1(sender: UnboundedSender<Actor1Messages>, channel: UnboundedReceiver<Actor1Messages>, actor2_ref: Actor2LocalProxy) -> Actor1LocalProxy {
@@ -73,19 +87,21 @@ pub mod actor1 {
     }
 
     pub struct Actor1Impl {
-        channel:  UnboundedReceiver<Actor1Messages>,
+        channel: UnboundedReceiver<Actor1Messages>,
         actor2_ref: Actor2LocalProxy,
         ping_counter: usize,
     }
 
     impl Actor1 for Actor1Impl {
-        async fn handle_ping(&mut self, _: ()) -> () {
+        async fn handle_ping(&self, _: ()) -> () {
             self.ping_counter += 1;
             println!("Actor1 received: Ping");
             self.actor2_ref.handle_pong(()).await;
         }
 
         async fn ping_counter(&mut self, _: ()) -> usize {
+            // let self_ref = self.clone();
+
             self.ping_counter
         }
     }
@@ -180,3 +196,33 @@ async fn main() {
     let ping_count = actor1.ping_counter(()).await;
     println!("Ping count: {}", ping_count);
 }
+
+
+
+// struct Service1 {
+//     actor: Actor1LocalProxy,
+//     actor_dyn: Box<dyn Actor1>,
+// }
+//
+// impl Service1 {
+//     async fn do_something(&self) {
+//         let mut actor = self.actor.clone();
+//         actor.handle_ping(()).await;
+//
+//         self.actor.handle_ping(()).await;
+//     }
+// }
+//
+// // То чего не хватает:
+// // можно слушать каналы
+// // можно слушать таймер
+//
+// // Идеи:
+// // 1. Builder
+// // let builder = Actor2.builder(actor2_tx, actor2_rx, actor1.clone())
+// // let actor2 = builder.reference(&self)
+// // builder.run(self)
+// //
+// // 2. Получение актор с помощью статического метода
+// // let actors: Vec<(String, Box<dyn Actor2>)> = Actor2::mailboxext()
+// // let actro2_1: Box<dyn Actor2> = Actor2::mailboxext_by_name("fdjsfkjds-fdsf-fdsmf")
