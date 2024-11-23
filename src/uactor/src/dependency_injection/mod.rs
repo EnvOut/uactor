@@ -1,7 +1,7 @@
 use std::future::Future;
 
-use crate::context::actor_registry::ActorRegistryErrors;
-use crate::context::extensions::ExtensionErrors;
+use crate::actor::context::actor_registry::ActorRegistryErrors;
+use crate::actor::context::extensions::ExtensionErrors;
 use crate::system::System;
 
 #[derive(thiserror::Error, Debug)]
@@ -14,7 +14,7 @@ pub enum InjectError {
 
 /// Sample:
 /// ```
-///# use uactor::context::extensions::Service;
+///# use uactor::actor::context::extensions::Service;
 /// use uactor::di::{Inject, InjectError};
 ///# use uactor::system::System;
 ///
@@ -41,10 +41,10 @@ pub trait Inject {
 }
 
 pub mod inject_impls {
-    use crate::actor::NamedActorRef;
-    use crate::context::extensions::Service;
-    use crate::data_publisher::TryClone;
-    use crate::di::{Inject, InjectError};
+    use crate::actor::abstract_actor::NamedActorRef;
+    use crate::actor::context::extensions::Service;
+    use crate::data::data_publisher::TryClone;
+    use crate::dependency_injection::{Inject, InjectError};
     use crate::system::System;
     use std::sync::Arc;
 

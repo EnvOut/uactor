@@ -11,7 +11,7 @@ use crate::actor2::Actor2;
 use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
 pub mod messages {
-    use uactor::message::Message;
+    use uactor::actor::message::Message;
     use uactor::message_impl;
 
     #[derive(Debug)]
@@ -35,8 +35,8 @@ pub mod messages {
 }
 
 pub mod actor1 {
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::Context;
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::Context;
 
     use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
@@ -79,8 +79,8 @@ pub mod actor1 {
 }
 
 pub mod actor2 {
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::Context;
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::Context;
 
     use crate::messages::RespMsg;
 

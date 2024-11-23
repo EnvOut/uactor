@@ -3,11 +3,11 @@ use std::time::Duration;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use uactor::actor::{Actor, HandleResult, Handler, MessageSender};
-use uactor::context::Context;
+use uactor::actor::abstract_actor::{Actor, HandleResult, Handler, MessageSender};
+use uactor::actor::context::Context;
 use uactor::system::System;
 
-use uactor::message::{Message, Reply};
+use uactor::actor::message::{Message, Reply};
 pub struct PingMsg;
 
 uactor::message_impl!(PingMsg);

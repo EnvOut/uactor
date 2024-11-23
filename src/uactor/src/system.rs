@@ -1,10 +1,10 @@
-use crate::actor::Actor;
-use crate::context::actor_registry::{ActorRegistry, ActorRegistryErrors};
-use crate::context::extensions::{ExtensionErrors, Extensions, Service};
-use crate::context::ActorContext;
-use crate::data_publisher::{TryClone, TryCloneError};
-use crate::di::{Inject, InjectError};
-use crate::select::ActorSelect;
+use crate::actor::abstract_actor::Actor;
+use crate::actor::context::actor_registry::{ActorRegistry, ActorRegistryErrors};
+use crate::actor::context::extensions::{ExtensionErrors, Extensions, Service};
+use crate::actor::context::ActorContext;
+use crate::data::data_publisher::{TryClone, TryCloneError};
+use crate::dependency_injection::{Inject, InjectError};
+use crate::actor::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
 use std::any::Any;
 use std::collections::HashMap;
@@ -241,7 +241,7 @@ impl System {
 }
 
 pub mod builder {
-    use crate::context::extensions::{Extensions, Service};
+    use crate::actor::context::extensions::{Extensions, Service};
     use crate::system::System;
     use std::sync::Arc;
 

@@ -1,4 +1,4 @@
-use crate::message::Message;
+use crate::actor::message::Message;
 use crate::system::System;
 use std::future::Future;
 use std::sync::Arc;
@@ -17,6 +17,10 @@ pub trait ActorContext: Sized + Unpin + 'static {
     }
     #[inline]
     fn on_iteration(&mut self) -> ContextResult<()> {
+        Ok(())
+    }
+    #[inline]
+    fn on_error(&mut self) -> ContextResult<()> {
         Ok(())
     }
     fn kill(&mut self);
@@ -64,9 +68,9 @@ impl ActorContext for Context {
 }
 
 pub mod supervised {
-    use crate::actor::MessageSender;
-    use crate::context::{ActorContext, ActorDied, ContextInitializationError, ContextResult};
-    use crate::data_publisher::TryClone;
+    use crate::actor::abstract_actor::MessageSender;
+    use crate::actor::context::{ActorContext, ActorDied, ContextInitializationError, ContextResult};
+    use crate::data::data_publisher::TryClone;
     use crate::system::{utils, System};
     use std::sync::Arc;
 
@@ -186,7 +190,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert!(ext.insert(5i32).is_none());
         /// assert!(ext.insert(4u8).is_none());
@@ -211,7 +215,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert!(ext.get::<i32>().is_none());
         /// ext.insert(5i32);
@@ -230,7 +234,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// ext.insert(String::from("Hello"));
         /// ext.get_mut::<String>().unwrap().push_str(" World");
@@ -251,7 +255,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// ext.insert(5i32);
         /// assert_eq!(ext.remove::<i32>(), Some(5i32));
@@ -274,7 +278,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// ext.insert(5i32);
         /// ext.clear();
@@ -293,7 +297,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert!(ext.is_empty());
         /// ext.insert(5i32);
@@ -309,7 +313,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert_eq!(ext.len(), 0);
         /// ext.insert(5i32);
@@ -328,7 +332,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext_a = Extensions::new();
         /// ext_a.insert(8u8);
         /// ext_a.insert(16u16);
@@ -394,8 +398,8 @@ pub mod extensions {
 }
 
 pub mod actor_registry {
-    use crate::context::extensions::IdHasher;
-    use crate::data_publisher::{TryClone, TryCloneError};
+    use crate::actor::context::extensions::IdHasher;
+    use crate::data::data_publisher::{TryClone, TryCloneError};
     use std::any::{Any, TypeId};
     use std::collections::HashMap;
     use std::fmt;

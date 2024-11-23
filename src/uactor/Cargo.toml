@@ -44,6 +44,7 @@ name = "single_channel_actor"
 name = "supervised_actor"
 
 [features]
-default = ["tokio_tracing"]
+default = ["tokio_tracing", "enable_spawn_macros"]
 async_sender = []
 tokio_tracing = []
+enable_spawn_macros = []

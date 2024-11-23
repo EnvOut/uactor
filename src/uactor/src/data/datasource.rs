@@ -3,7 +3,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::time::Interval;
 
-use crate::message::IntervalMessage;
+use crate::actor::message::IntervalMessage;
 
 pub type DataSourceResult<T> = Result<T, DataSourceErrors>;
 

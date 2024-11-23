@@ -2,7 +2,7 @@ use std::time::Duration;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use uactor::actor::MessageSender;
+use uactor::actor::abstract_actor::MessageSender;
 use uactor::system::System;
 
 use crate::actor1::Actor1;
@@ -12,7 +12,7 @@ use crate::messages::PingMsg;
 use crate::supervisor::{Supervisor, SupervisorMsg, SupervisorRef};
 
 mod messages {
-    use uactor::message::{Message, Reply};
+    use uactor::actor::message::{Message, Reply};
 
     pub struct PingMsg(pub Reply<PongMsg>);
 
@@ -26,9 +26,9 @@ mod actor1 {
     use crate::messages::{PingMsg, PongMsg};
     use crate::supervisor::{SupervisorMsg, SupervisorRef};
     use tokio::sync::mpsc;
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::supervised::SupervisedContext;
-    use uactor::context::ActorContext;
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::supervised::SupervisedContext;
+    use uactor::actor::context::ActorContext;
 
     pub struct Actor1;
 
@@ -59,8 +59,8 @@ mod actor1 {
 
 mod supervisor {
     use std::os::macos::raw::stat;
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::{ActorDied, Context};
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::{ActorDied, Context};
 
     pub struct Supervisor;
 

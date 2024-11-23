@@ -1,5 +1,5 @@
 use time::ext::NumericalStdDuration;
-use uactor::actor::MessageSender;
+use uactor::actor::abstract_actor::MessageSender;
 
 use uactor::system::System;
 
@@ -9,7 +9,7 @@ use crate::actor1::Actor1Ref;
 use crate::messages::{PingMsg, PongMsg};
 
 mod messages {
-    use uactor::message::{Message, Reply};
+    use uactor::actor::message::{Message, Reply};
 
     pub struct PingMsg(pub Reply<PongMsg>);
 
@@ -20,9 +20,9 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::Context;
-    use uactor::message::IntervalMessage;
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::Context;
+    use uactor::actor::message::IntervalMessage;
 
     use crate::messages::{PingMsg, PongMsg};
 
