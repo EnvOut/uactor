@@ -6,11 +6,6 @@ use crate::actor1::{Actor1, Actor1LocalProxy, Actor1Messages};
 use crate::actor2::Actor2Messages;
 
 pub mod example;
-
-fn main() {
-
-}
-
 pub mod actor1 {
     use std::future::Future;
     use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};

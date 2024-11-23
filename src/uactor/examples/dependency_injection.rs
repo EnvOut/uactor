@@ -34,7 +34,7 @@ mod actor1 {
 
     use uactor::actor::{Actor, HandleResult, Handler, MessageSender};
     use uactor::context::extensions::Service;
-    use uactor::context::Context;
+    use uactor::context::{ActorContext, Context};
     use uactor::di::{Inject, InjectError};
     use uactor::system::System;
 
@@ -77,7 +77,7 @@ mod actor1 {
             state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
-
+            
             service1.do_something();
 
             let PingMsg(reply) = ping;

@@ -256,3 +256,8 @@ where
 }
 
 pub type HandleResult = Result<(), Box<dyn std::error::Error>>;
+
+enum HandleResul {
+    Kill,
+    Err(Box<dyn std::error::Error>),
+}

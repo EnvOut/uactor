@@ -138,42 +138,42 @@ pub mod theatre {
         where
             A: Actor + Send + Sync + 'static,
         {
-            let type_name = type_name::<A>().to_owned();
+            // let type_name = type_name::<A>().to_owned();
 
             // prepare channel for commands to actor
             let (command_rx, mut command_rc): (UnboundedSender<ActorControlMessage<A>>, UnboundedReceiver<ActorControlMessage<A>>) = tokio::sync::mpsc::unbounded_channel::<ActorControlMessage<A>>();
             self.actor_command_channel.insert(name.to_string(), Box::new(command_rx.clone()));
 
-            tokio::spawn(async move {
-                let mut actor = actor;
-
-                let mut channels: HashMap<String, UnboundedReceiver<A::Message>> = HashMap::new();
-
-                let mut channels: Vec<Pin<Box<dyn DataSource<Item=A::Message>>>> = Vec::new();
-                let mut command_rc = command_rc;
-
-                let mut futures: FuturesUnordered<Pin<Box<dyn Future<Output=DataSourceResult<<A as Actor>::Message>> + Send>>> = FuturesUnordered::new();
-                channels.iter_mut()
-                    .map(|channel| channel.next())
-                    .for_each(|f| futures.push(Box::pin(f)));
-                loop {
-                    tokio::select! {
-                        command = command_rc.recv() => {
-                            let mut c = command.unwrap();
-
-                            println!("Received command");
-                        }
-                        // _ = futures.next() => {
-                        //     println!("Received message");
-                        // }
-                    }
-
-                    // actor.calculate_invoice_price(10);
-                    // actor.calculate_something("Hello".to_string());
-
-                    println!("Actor is running");
-                }
-            });
+            // tokio::spawn(async move {
+            //     let mut actor = actor;
+            //
+            //     let mut channels: HashMap<String, UnboundedReceiver<A::Message>> = HashMap::new();
+            //
+            //     let mut channels: Vec<Pin<Box<dyn DataSource<Item=A::Message>>>> = Vec::new();
+            //     let mut command_rc = command_rc;
+            //
+            //     let mut futures: FuturesUnordered<Pin<Box<dyn Future<Output=DataSourceResult<<A as Actor>::Message>> + Send>>> = FuturesUnordered::new();
+            //     channels.iter_mut()
+            //         .map(|channel| channel.next())
+            //         .for_each(|f| futures.push(Box::pin(f)));
+            //     loop {
+            //         tokio::select! {
+            //             command = command_rc.recv() => {
+            //                 let mut c = command.unwrap();
+            //
+            //                 println!("Received command");
+            //             }
+            //             // _ = futures.next() => {
+            //             //     println!("Received message");
+            //             // }
+            //         }
+            //
+            //         // actor.calculate_invoice_price(10);
+            //         // actor.calculate_something("Hello".to_string());
+            //
+            //         println!("Actor is running");
+            //     }
+            // });
 
             // println!("Type name: {}", type_name);
             // self.name_actor.insert(name.to_string(), actor);
