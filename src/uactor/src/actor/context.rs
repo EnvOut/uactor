@@ -1,7 +1,8 @@
-use crate::message::Message;
+use crate::actor::message::Message;
 use crate::system::System;
 use std::future::Future;
 use std::sync::Arc;
+use crate::actor::abstract_actor::{Actor, HandleError};
 
 pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type ContextInitializationError<T> = Result<T, String>;
@@ -16,16 +17,16 @@ pub trait ActorContext: Sized + Unpin + 'static {
         Ok(())
     }
     #[inline]
-    fn on_iteration(&mut self) -> ContextResult<()> {
-        Ok(())
-    }
+    fn after_iteration(&mut self) -> () { }
+    #[inline]
+    fn on_error(&mut self, _error: &HandleError) -> () { }
     fn kill(&mut self);
     fn get_name(&self) -> &str;
     #[allow(clippy::wrong_self_convention)]
     fn is_alive(&self) -> bool {
         true
     }
-    fn create(
+    fn create<A: Actor>(
         system: &mut System,
         name: Arc<str>,
     ) -> impl Future<Output = ContextInitializationError<Self>> + Send;
@@ -58,77 +59,8 @@ impl ActorContext for Context {
         self.alive
     }
 
-    async fn create(_: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
+    async fn create<A: Actor>(_: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
         Ok(Context { alive: true, name })
-    }
-}
-
-pub mod supervised {
-    use crate::actor::MessageSender;
-    use crate::context::{ActorContext, ActorDied, ContextInitializationError, ContextResult};
-    use crate::data_publisher::TryClone;
-    use crate::system::{utils, System};
-    use std::sync::Arc;
-
-    #[derive(derive_more::Constructor)]
-    pub struct SupervisedContext<T>
-    where
-        T: MessageSender<ActorDied>,
-    {
-        pub alive: bool,
-        _id: usize,
-        supervisor: T,
-        name: Arc<str>,
-    }
-
-    impl<T> ActorContext for SupervisedContext<T>
-    where
-        T: MessageSender<ActorDied> + Unpin + 'static + TryClone + Send + Sync,
-    {
-        fn on_die(&mut self, actor_name: Arc<str>) -> ContextResult<()> {
-            if let Err(e) = self.supervisor.send(ActorDied(actor_name)) {
-                tracing::error!("Failed to notify supervisor about actor death: {:?}", e);
-            }
-            Ok(())
-        }
-
-        fn kill(&mut self) {
-            self.alive = false;
-        }
-
-        fn get_name(&self) -> &str {
-            &self.name
-        }
-
-        fn is_alive(&self) -> bool {
-            self.alive
-        }
-
-        async fn create(system: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
-            let mut found_actors: Vec<T> = system.get_actors::<T>().map_err(|e| e.to_string())?;
-            let is_more_one = found_actors.len() > 1;
-
-            if is_more_one {
-                let msg = format!("SupervisedContext can't be used with more than one actor: {:?} of the same kind", utils::type_name::<T>());
-                tracing::error!(msg);
-                return Err(msg);
-            } else if found_actors.is_empty() {
-                let msg = format!(
-                    "SupervisedContext can't be used without selected supervisor's actor: {:?}",
-                    utils::type_name::<T>()
-                );
-                tracing::error!(msg);
-                return Err(msg);
-            }
-
-            let supervisor = found_actors.remove(0);
-            Ok(Self {
-                alive: true,
-                _id: rand::random(),
-                supervisor,
-                name,
-            })
-        }
     }
 }
 
@@ -186,7 +118,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert!(ext.insert(5i32).is_none());
         /// assert!(ext.insert(4u8).is_none());
@@ -211,7 +143,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert!(ext.get::<i32>().is_none());
         /// ext.insert(5i32);
@@ -230,7 +162,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// ext.insert(String::from("Hello"));
         /// ext.get_mut::<String>().unwrap().push_str(" World");
@@ -251,7 +183,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// ext.insert(5i32);
         /// assert_eq!(ext.remove::<i32>(), Some(5i32));
@@ -274,7 +206,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// ext.insert(5i32);
         /// ext.clear();
@@ -293,7 +225,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert!(ext.is_empty());
         /// ext.insert(5i32);
@@ -309,7 +241,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext = Extensions::new();
         /// assert_eq!(ext.len(), 0);
         /// ext.insert(5i32);
@@ -328,7 +260,7 @@ pub mod extensions {
         /// # Example
         ///
         /// ```
-        /// # use uactor::context::extensions::Extensions;
+        /// # use uactor::actor::context::extensions::Extensions;
         /// let mut ext_a = Extensions::new();
         /// ext_a.insert(8u8);
         /// ext_a.insert(16u16);
@@ -394,14 +326,16 @@ pub mod extensions {
 }
 
 pub mod actor_registry {
-    use crate::context::extensions::IdHasher;
-    use crate::data_publisher::{TryClone, TryCloneError};
+    use crate::actor::context::extensions::IdHasher;
+    use crate::data::data_publisher::{DataPublisher, TryClone, TryCloneError};
     use std::any::{Any, TypeId};
     use std::collections::HashMap;
     use std::fmt;
     use std::hash::BuildHasherDefault;
     use std::ops::{Deref, DerefMut};
     use std::sync::Arc;
+    use crate::actor::abstract_actor::Actor;
+    use crate::actor::message::Message;
 
     type AnyBoxed = Box<dyn Any + Send + Sync>;
 
@@ -417,33 +351,47 @@ pub mod actor_registry {
             Self::default()
         }
 
-        // TODO: docs
-        pub fn insert<T: Send + Sync + 'static>(
+        pub fn register_ref<A, M, D>(
             &mut self,
             actor_name: Arc<str>,
-            val: T,
-        ) -> Option<T> {
-            let entry = self.inner.entry(TypeId::of::<T>()).or_default();
-            entry.insert(actor_name, Box::new(val)).and_then(|boxed| {
+            channel: D,
+            state: A::State
+        ) -> Option<D>
+        where
+            A: Actor,
+            M: Message,
+            D: DataPublisher<Item = M> + Send + Sync + 'static,
+        {
+            let entry = self.inner.entry(TypeId::of::<A>()).or_default();
+            entry.insert(actor_name, Box::new((channel, state))).and_then(|boxed| {
                 (boxed as Box<dyn Any + 'static>)
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)
             })
         }
-
         // TODO: docs
-        pub fn get_all<T: Send + Sync + 'static>(&self) -> Option<Vec<&T>> {
+        pub fn get_all<A, M, D>(&self) -> Option<Vec<&(D, A::State)>>
+        where
+            A: Actor,
+            M: Message,
+            D: DataPublisher<Item = M> + Send + Sync + 'static
+        {
             self.inner
-                .get(&TypeId::of::<T>())?
+                .get(&TypeId::of::<A>())?
                 .values()
                 .map(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
-                .collect::<Option<Vec<&T>>>()
+                .collect::<Option<Vec<&(D, A::State)>>>()
         }
 
         // TODO: docs
-        pub fn get_actor<T: Send + Sync + 'static>(&self, actor_name: Arc<str>) -> Option<&T> {
-            let boxed_actor_ref = self.inner.get(&TypeId::of::<T>())?.get(&actor_name)?;
+        pub fn get_actor_ref<T, R>(&self, actor_name: Arc<str>) -> Option<&R>
+        where
+            T: Send + Sync + 'static,
+            R: 'static,
+        {
+            let group_by_type = self.inner.get(&TypeId::of::<T>())?;
+            let boxed_actor_ref = group_by_type.get(&actor_name)?;
             (&**boxed_actor_ref as &(dyn Any + 'static)).downcast_ref()
         }
 

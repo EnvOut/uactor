@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.11.0"
+version = "0.12.0"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -11,6 +11,7 @@ description = "The fastest and most modular actor system that doesn't force you 
 
 [dependencies]
 tokio = { workspace = true }
+tokio-stream = "0.1"
 futures = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -44,6 +45,7 @@ name = "single_channel_actor"
 name = "supervised_actor"
 
 [features]
-default = ["tokio_tracing"]
+default = ["tokio_tracing", "enable_spawn_macros"]
 async_sender = []
 tokio_tracing = []
+enable_spawn_macros = []

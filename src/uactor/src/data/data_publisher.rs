@@ -146,7 +146,6 @@ pub use sync_sender::*;
 
 #[cfg(not(feature = "async_sender"))]
 mod sync_sender {
-    use tokio::sync::mpsc::UnboundedSender;
     use tokio::sync::{broadcast, mpsc, oneshot, watch};
 
     pub trait DataPublisher: TryClone {
@@ -201,7 +200,7 @@ mod sync_sender {
         }
     }
 
-    impl<T> TryClone for UnboundedSender<T>
+    impl<T> TryClone for mpsc::UnboundedSender<T>
     where
         T: Send,
     {

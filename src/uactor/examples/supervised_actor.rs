@@ -1,18 +1,19 @@
 use std::time::Duration;
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use uactor::actor::MessageSender;
+use uactor::actor::abstract_actor::MessageSender;
 use uactor::system::System;
 
-use crate::actor1::Actor1;
+use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
 use crate::messages::PingMsg;
-use crate::supervisor::{Supervisor, SupervisorMsg, SupervisorRef};
+use crate::supervisor::{Supervisor, SupervisorMpscRef, SupervisorMsg, SupervisorRef};
 
 mod messages {
-    use uactor::message::{Message, Reply};
+    use uactor::actor::message::{Message, Reply};
 
     pub struct PingMsg(pub Reply<PongMsg>);
 
@@ -24,16 +25,13 @@ mod messages {
 
 mod actor1 {
     use crate::messages::{PingMsg, PongMsg};
-    use crate::supervisor::{SupervisorMsg, SupervisorRef};
-    use tokio::sync::mpsc;
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::supervised::SupervisedContext;
-    use uactor::context::ActorContext;
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::{ActorContext, Context};
 
     pub struct Actor1;
 
     impl Actor for Actor1 {
-        type Context = SupervisedContext<SupervisorRef<mpsc::UnboundedSender<SupervisorMsg>>>;
+        type Context = Context;
         type Inject = ();
         type State = ();
     }
@@ -44,7 +42,7 @@ mod actor1 {
             _: &mut Self::Inject,
             ping: PingMsg,
             ctx: &mut Self::Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
@@ -58,9 +56,8 @@ mod actor1 {
 }
 
 mod supervisor {
-    use std::os::macos::raw::stat;
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::{ActorDied, Context};
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::{ActorDied, Context};
 
     pub struct Supervisor;
 
@@ -95,17 +92,18 @@ async fn main() -> anyhow::Result<()> {
 
     let mut system = System::global().build();
 
-    let actor1 = Actor1;
+    let (supervisor_ref, supervisor_stream) = system.register_ref::<Supervisor, _, SupervisorMpscRef>("supervisor");
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
+
+    // Run supervisor
     let supervisor = Supervisor;
+    system.spawn_actor(supervisor_ref.name(), supervisor, (), supervisor_stream).await?;
 
-    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
-    let (supervisor_ref, _) = uactor::spawn_with_ref!(system, supervisor: Supervisor);
+    // Run actor1
+    let actor1 = Actor1;
+    system.spawn_actor(actor1_ref.name(), actor1, (), actor1_stream).await?;
 
-    system
-        .run_actor::<Supervisor>(supervisor_ref.name())
-        .await?;
-    system.run_actor::<Actor1>(actor1_ref.name()).await?;
-
+    // ask actor1 to send a pong message
     let pong = actor1_ref.ask(PingMsg).await?;
     println!("main: received {pong:?} message");
 

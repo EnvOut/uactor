@@ -20,6 +20,9 @@ Examples can be found [here](src/uactor/examples).
 9. Implemented support for actors for which it is necessary to work with multiple message sources (channels) [Example: Multi channel](src/uactor/examples/multiple_incoming_channels.rs)
 10. Implemented shared state for actors [Example: Shared state](src/uactor/examples/shared_state.rs) 
 
+### Actor lifecycle
+![Lifecycle.png](docs/assets/Lifecycle.png)
+
 ### Other projects:
 1. Actix
 2. Ractor

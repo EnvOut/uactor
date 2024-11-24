@@ -2,9 +2,6 @@
 resolver = "2"
 members = [
     "src/uactor",
-    "experiments/actix-mpv",
-    "experiments/tokio_play",
-    "experiments/toactor_play",
 ]
 
 [workspace.dependencies]
@@ -12,7 +9,7 @@ tokio = { version = "1.35.0", features = ["net", "sync", "time", "rt", "macros",
 futures = "0.3"
 
 # errors
-thiserror = "1.0"
+thiserror = "2"
 anyhow = { version = "1.0", features = ["backtrace"] }
 
 # tracing
@@ -26,4 +23,4 @@ strum = { version = "0.26", features = ["derive"] }
 strum_macros = "0.26"
 
 derive_more = { version = "1", features = ["full"] }
-derive-new = "0.6.0"
+derive-new = "0.7"

@@ -1,19 +1,15 @@
 use time::ext::NumericalStdDuration;
-use uactor::actor::MessageSender;
+use uactor::actor::abstract_actor::MessageSender;
 
 use uactor::system::System;
 
-use crate::actor1::Actor1;
-use crate::actor1::Actor1Msg;
-use crate::actor1::Actor1Ref;
-use crate::actor2::Actor2;
-use crate::actor2::Actor2Msg;
-use crate::actor2::Actor2Ref;
+use crate::actor1::{Actor1, Actor1MpscRef};
+use crate::actor2::{Actor2, Actor2MpscRef};
 use crate::messages::{MessageWithoutReply, PingMsg, PongMsg};
 use crate::services::{Service1, Service2};
 
 mod messages {
-    use uactor::message::{Message, Reply};
+    use uactor::actor::message::{Message, Reply};
 
     pub struct PingMsg(pub Reply<PongMsg>);
 
@@ -30,15 +26,14 @@ mod messages {
 }
 
 mod actor1 {
-    use tokio::sync::mpsc::UnboundedSender;
-
-    use uactor::actor::{Actor, HandleResult, Handler, MessageSender};
-    use uactor::context::extensions::Service;
-    use uactor::context::Context;
-    use uactor::di::{Inject, InjectError};
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler, MessageSender};
+    use uactor::actor::context::extensions::Service;
+    use uactor::actor::context::Context;
+    use uactor::data::data_publisher::DataPublisher;
+    use uactor::dependency_injection::{Inject, InjectError};
     use uactor::system::System;
 
-    use crate::actor2::{Actor2Msg, Actor2Ref};
+    use crate::actor2::{Actor2, Actor2MpscRef};
     use crate::messages::{MessageWithoutReply, PingMsg, PongMsg, PrintMessage};
     use crate::services::Service1;
 
@@ -47,7 +42,7 @@ mod actor1 {
     #[derive(derive_more::Constructor)]
     pub struct Services {
         service1: Service<Service1>,
-        actor2_ref: Actor2Ref<UnboundedSender<Actor2Msg>>,
+        actor2_ref: Actor2MpscRef,
     }
 
     impl Inject for Services {
@@ -56,8 +51,7 @@ mod actor1 {
             Self: Sized,
         {
             let service1 = system.get_service()?;
-            let actor2_ref =
-                system.get_actor::<Actor2Ref<UnboundedSender<Actor2Msg>>>("actor2".into())?;
+            let actor2_ref = system.get_actor::<Actor2, _, _, _>("actor2".into())?;
             Ok(Services::new(service1, actor2_ref))
         }
     }
@@ -104,10 +98,10 @@ mod actor1 {
 }
 
 mod actor2 {
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::extensions::Service;
-    use uactor::context::Context;
-    use uactor::di::{Inject, InjectError};
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::extensions::Service;
+    use uactor::actor::context::Context;
+    use uactor::dependency_injection::{Inject, InjectError};
     use uactor::system::System;
 
     use crate::messages::{PingMsg, PongMsg, PrintMessage};
@@ -207,16 +201,17 @@ async fn main() -> anyhow::Result<()> {
         .build();
 
     // Init actor (instance + spawn actor)
-    let actor1 = Actor1;
-    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
 
     // Init actor2 (instance + spawn actor)
-    let actor2 = Actor2;
-    let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
+    let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2MpscRef>("actor2");
 
     // Run actors
-    system.run_actor::<Actor1>(actor1_ref.name()).await?;
-    system.run_actor::<Actor2>(actor2_ref.name()).await?;
+    let actor1 = Actor1;
+    system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), (actor1_stream)).await?;
+
+    let actor2 = Actor2;
+    system.spawn_actor(actor2_ref.name(), actor2, *actor2_ref.state(), (actor2_stream)).await?;
 
     // Case #1: send messages and call injected (not from &self) services inside handlers
     println!(

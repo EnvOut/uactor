@@ -1,15 +1,16 @@
 use time::ext::NumericalStdDuration;
-use uactor::actor::MessageSender;
+use tokio::sync::mpsc::UnboundedSender;
+use uactor::actor::abstract_actor::MessageSender;
 
 use uactor::system::System;
 
-use crate::actor1::Actor1;
+use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
 use crate::messages::{PingMsg, PongMsg};
 
 mod messages {
-    use uactor::message::{Message, Reply};
+    use uactor::actor::message::{Message, Reply};
 
     pub struct PingMsg(pub Reply<PongMsg>);
 
@@ -20,9 +21,9 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::{Actor, HandleResult, Handler};
-    use uactor::context::Context;
-    use uactor::message::IntervalMessage;
+    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
+    use uactor::actor::context::Context;
+    use uactor::actor::message::IntervalMessage;
 
     use crate::messages::{PingMsg, PongMsg};
 
@@ -77,16 +78,15 @@ mod actor1 {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let actor1 = Actor1::default();
-
     let mut system = System::global().build();
 
     // 1 second interval
     let interval = tokio::time::interval(1.std_seconds());
 
-    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1, interval);
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
 
-    system.run_actor::<Actor1>(actor1_ref.name()).await?;
+    let actor1 = Actor1::default();
+    system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), (actor1_stream, interval)).await?;
 
     let pong = actor1_ref.ask::<PongMsg>(PingMsg).await?;
     println!("main: received {pong:?} message");

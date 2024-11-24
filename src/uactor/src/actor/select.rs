@@ -1,6 +1,6 @@
-use crate::actor::{Actor, HandleResult, Handler};
-use crate::datasource::DataSource;
-use crate::message::Message;
+use crate::actor::abstract_actor::{Actor, HandleResult, Handler};
+use crate::data::datasource::DataSource;
+use crate::actor::message::Message;
 use std::future::pending;
 
 pub trait ActorSelect<A: Actor + Send> {
