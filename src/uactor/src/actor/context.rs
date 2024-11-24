@@ -2,6 +2,7 @@ use crate::actor::message::Message;
 use crate::system::System;
 use std::future::Future;
 use std::sync::Arc;
+use crate::actor::abstract_actor::{Actor, HandleError};
 
 pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type ContextInitializationError<T> = Result<T, String>;
@@ -16,20 +17,16 @@ pub trait ActorContext: Sized + Unpin + 'static {
         Ok(())
     }
     #[inline]
-    fn on_iteration(&mut self) -> ContextResult<()> {
-        Ok(())
-    }
+    fn after_iteration(&mut self) -> () { }
     #[inline]
-    fn on_error(&mut self) -> ContextResult<()> {
-        Ok(())
-    }
+    fn on_error(&mut self, _error: &HandleError) -> () { }
     fn kill(&mut self);
     fn get_name(&self) -> &str;
     #[allow(clippy::wrong_self_convention)]
     fn is_alive(&self) -> bool {
         true
     }
-    fn create(
+    fn create<A: Actor>(
         system: &mut System,
         name: Arc<str>,
     ) -> impl Future<Output = ContextInitializationError<Self>> + Send;
@@ -62,77 +59,8 @@ impl ActorContext for Context {
         self.alive
     }
 
-    async fn create(_: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
+    async fn create<A: Actor>(_: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
         Ok(Context { alive: true, name })
-    }
-}
-
-pub mod supervised {
-    use crate::actor::abstract_actor::MessageSender;
-    use crate::actor::context::{ActorContext, ActorDied, ContextInitializationError, ContextResult};
-    use crate::data::data_publisher::TryClone;
-    use crate::system::{utils, System};
-    use std::sync::Arc;
-
-    #[derive(derive_more::Constructor)]
-    pub struct SupervisedContext<T>
-    where
-        T: MessageSender<ActorDied>,
-    {
-        pub alive: bool,
-        _id: usize,
-        supervisor: T,
-        name: Arc<str>,
-    }
-
-    impl<T> ActorContext for SupervisedContext<T>
-    where
-        T: MessageSender<ActorDied> + Unpin + 'static + TryClone + Send + Sync,
-    {
-        fn on_die(&mut self, actor_name: Arc<str>) -> ContextResult<()> {
-            if let Err(e) = self.supervisor.send(ActorDied(actor_name)) {
-                tracing::error!("Failed to notify supervisor about actor death: {:?}", e);
-            }
-            Ok(())
-        }
-
-        fn kill(&mut self) {
-            self.alive = false;
-        }
-
-        fn get_name(&self) -> &str {
-            &self.name
-        }
-
-        fn is_alive(&self) -> bool {
-            self.alive
-        }
-
-        async fn create(system: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
-            let mut found_actors: Vec<T> = system.get_actors::<T>().map_err(|e| e.to_string())?;
-            let is_more_one = found_actors.len() > 1;
-
-            if is_more_one {
-                let msg = format!("SupervisedContext can't be used with more than one actor: {:?} of the same kind", utils::type_name::<T>());
-                tracing::error!(msg);
-                return Err(msg);
-            } else if found_actors.is_empty() {
-                let msg = format!(
-                    "SupervisedContext can't be used without selected supervisor's actor: {:?}",
-                    utils::type_name::<T>()
-                );
-                tracing::error!(msg);
-                return Err(msg);
-            }
-
-            let supervisor = found_actors.remove(0);
-            Ok(Self {
-                alive: true,
-                _id: rand::random(),
-                supervisor,
-                name,
-            })
-        }
     }
 }
 

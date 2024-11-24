@@ -61,6 +61,8 @@ macro_rules! generate_actor_ref {
                 }
             }
 
+            pub type [<$ActorType MpscRef>] = [<$ActorType Ref>]<tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>>;
+
             pub struct [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
                 name: std::sync::Arc<str>,
                 state: <$ActorType as uactor::actor::abstract_actor::Actor>::State,

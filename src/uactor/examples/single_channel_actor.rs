@@ -3,7 +3,7 @@ use uactor::actor::abstract_actor::MessageSender;
 use uactor::aliases::ActorName;
 use uactor::system::System;
 
-use crate::actor1::Actor1;
+use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
 use crate::messages::PingMsg;
@@ -58,9 +58,9 @@ async fn main() -> anyhow::Result<()> {
 
     let mut system = System::global().build();
 
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, Actor1Msg, Actor1Ref<UnboundedSender<Actor1Msg>>>("actor1");
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, Actor1Msg, Actor1MpscRef>("actor1");
 
-    system.spawn_actor(actor1_ref.name(), actor1, (actor1_stream)).await?;
+    system.spawn_actor(actor1_ref.name(), actor1, (), actor1_stream).await?;
 
     let pong = actor1_ref.ask(PingMsg).await?;
     println!("main: received {pong:?} message");

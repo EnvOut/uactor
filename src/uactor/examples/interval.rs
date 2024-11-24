@@ -4,7 +4,7 @@ use uactor::actor::abstract_actor::MessageSender;
 
 use uactor::system::System;
 
-use crate::actor1::Actor1;
+use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
 use crate::messages::{PingMsg, PongMsg};
@@ -83,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
     // 1 second interval
     let interval = tokio::time::interval(1.std_seconds());
 
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1Ref<UnboundedSender<Actor1Msg>>>("actor1");
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
 
     let actor1 = Actor1::default();
     system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), (actor1_stream, interval)).await?;

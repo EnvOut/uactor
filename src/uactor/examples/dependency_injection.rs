@@ -1,15 +1,10 @@
 use time::ext::NumericalStdDuration;
-use tokio::sync::mpsc::UnboundedSender;
 use uactor::actor::abstract_actor::MessageSender;
 
 use uactor::system::System;
 
-use crate::actor1::Actor1;
-use crate::actor1::Actor1Msg;
-use crate::actor1::Actor1Ref;
-use crate::actor2::Actor2;
-use crate::actor2::Actor2Msg;
-use crate::actor2::Actor2Ref;
+use crate::actor1::{Actor1, Actor1MpscRef};
+use crate::actor2::{Actor2, Actor2MpscRef};
 use crate::messages::{MessageWithoutReply, PingMsg, PongMsg};
 use crate::services::{Service1, Service2};
 
@@ -31,8 +26,6 @@ mod messages {
 }
 
 mod actor1 {
-    use tokio::sync::mpsc::UnboundedSender;
-
     use uactor::actor::abstract_actor::{Actor, HandleResult, Handler, MessageSender};
     use uactor::actor::context::extensions::Service;
     use uactor::actor::context::Context;
@@ -40,7 +33,7 @@ mod actor1 {
     use uactor::dependency_injection::{Inject, InjectError};
     use uactor::system::System;
 
-    use crate::actor2::{Actor2, Actor2Msg, Actor2Ref};
+    use crate::actor2::{Actor2, Actor2MpscRef};
     use crate::messages::{MessageWithoutReply, PingMsg, PongMsg, PrintMessage};
     use crate::services::Service1;
 
@@ -49,7 +42,7 @@ mod actor1 {
     #[derive(derive_more::Constructor)]
     pub struct Services {
         service1: Service<Service1>,
-        actor2_ref: Actor2Ref<UnboundedSender<Actor2Msg>>,
+        actor2_ref: Actor2MpscRef,
     }
 
     impl Inject for Services {
@@ -58,7 +51,7 @@ mod actor1 {
             Self: Sized,
         {
             let service1 = system.get_service()?;
-            let actor2_ref = system.get_actor::<Actor2, Actor2Msg, _, Actor2Ref<_>>("actor2".into())?;
+            let actor2_ref = system.get_actor::<Actor2, _, _, _>("actor2".into())?;
             Ok(Services::new(service1, actor2_ref))
         }
     }
@@ -208,10 +201,10 @@ async fn main() -> anyhow::Result<()> {
         .build();
 
     // Init actor (instance + spawn actor)
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1Ref<UnboundedSender<Actor1Msg>>>("actor1");
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
 
     // Init actor2 (instance + spawn actor)
-    let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2Ref<UnboundedSender<Actor2Msg>>>("actor2");
+    let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2MpscRef>("actor2");
 
     // Run actors
     let actor1 = Actor1;

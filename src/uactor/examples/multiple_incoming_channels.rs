@@ -1,5 +1,5 @@
 use std::time::Duration;
-
+use tokio::sync::mpsc;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -35,13 +35,14 @@ pub mod messages {
 }
 
 pub mod actor1 {
+    use tokio::sync::mpsc;
     use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
     use uactor::actor::context::Context;
 
     use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
     pub struct Actor1 {
-        pub resp_tx: tokio::sync::mpsc::Sender<RespMsg>,
+        pub resp_tx: mpsc::Sender<RespMsg>,
     }
 
     impl Actor for Actor1 {
@@ -117,9 +118,9 @@ async fn main() -> anyhow::Result<()> {
     let mut system = System::global().build();
 
     // Initialize channels
-    let (ping_tx, ping_rx) = tokio::sync::mpsc::channel::<PingPongMsg>(10);
-    let (req_tx, req_rx) = tokio::sync::mpsc::channel::<ReqMsg>(10);
-    let (resp_tx, resp_rx) = tokio::sync::mpsc::channel::<RespMsg>(10);
+    let (ping_tx, ping_rx) = mpsc::channel::<PingPongMsg>(10);
+    let (req_tx, req_rx) = mpsc::channel::<ReqMsg>(10);
+    let (resp_tx, resp_rx) = mpsc::channel::<RespMsg>(10);
 
     // Initialize actors
     let actor1 = Actor1 { resp_tx };
@@ -127,7 +128,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Run actors
     let (_, handle1) = system.spawn_actor("actor1".into(), actor1, (), (ping_rx, req_rx)).await?;
-    let (_, handle2) = system.spawn_actor("actor2".into(), actor2, (), (resp_rx)).await?;
+    let (_, handle2) = system.spawn_actor("actor2".into(), actor2, (), resp_rx).await?;
 
     // Send messages
     ping_tx.send(PingPongMsg::Ping).await?;
