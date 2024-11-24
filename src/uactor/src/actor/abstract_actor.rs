@@ -1,11 +1,11 @@
 use crate::actor::context::ActorContext;
 use crate::actor::message::Message;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 pub trait State: std::any::Any + Send + 'static {}
 impl<T: std::any::Any + Send + 'static> State for T {}
-pub type ActorPreStartResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
 
 use crate::dependency_injection::Inject;
 
@@ -16,18 +16,24 @@ pub trait Actor: Sized + Unpin + 'static {
 
     type Inject: Inject + Sized;
 
-    type State: Default + Send + Sync;
+    type State: Default + Send + Sync + Clone;
 
     fn create_state(&mut self) -> Arc<Self::State> {
         Arc::new(Default::default())
     }
 
-    fn pre_start(
+    fn on_start(
         &mut self,
         inject: &mut Self::Inject,
         ctx: &mut Self::Context,
-    ) -> impl Future<Output = ActorPreStartResult<()>> + Send {
-        async { Ok(()) }
+    ) -> impl Future<Output = ()> + Send {
+        async {  }
+    }
+
+    fn on_error(&mut self, ctx: &mut Self::Context, error: HandleError) -> impl Future<Output=()> + Send {
+        async move  {
+            tracing::error!("Actor error: {:?}", error);
+        }
     }
 }
 
@@ -46,7 +52,9 @@ where
     ) -> impl Future<Output = HandleResult> + Send;
 }
 
-pub type HandleResult = Result<(), Box<dyn std::error::Error>>;
+pub type HandleError = Box<dyn std::error::Error + Send + Sync>;
+
+pub type HandleResult = Result<(), HandleError>;
 
 
 #[cfg(not(feature = "async_sender"))]
@@ -71,8 +79,4 @@ where
         &self,
         f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M,
     ) -> Result<A, crate::data::data_publisher::DataPublisherErrors>;
-}
-
-pub trait NamedActorRef {
-    fn static_name() -> &'static str;
 }

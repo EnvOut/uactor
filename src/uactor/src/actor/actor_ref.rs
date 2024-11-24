@@ -25,12 +25,6 @@ macro_rules! generate_actor_ref {
                 $($Message($Message)),*
             }
 
-            impl ::uactor::actor::abstract_actor::NamedActorRef for [<$ActorType Msg>] {
-                fn static_name() -> &'static str {
-                    stringify!([<$ActorType Msg>])
-                }
-            }
-
             impl uactor::actor::message::Message for [<$ActorType Msg>] {
                 fn static_name() -> &'static str {
                     stringify!([<$ActorType Msg>])
@@ -69,7 +63,7 @@ macro_rules! generate_actor_ref {
 
             pub struct [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
                 name: std::sync::Arc<str>,
-                state: std::sync::Arc<<$ActorType as uactor::actor::abstract_actor::Actor>::State>,
+                state: <$ActorType as uactor::actor::abstract_actor::Actor>::State,
                 sender: T,
             }
 
@@ -82,6 +76,25 @@ macro_rules! generate_actor_ref {
             impl Clone for [<$ActorType Ref>]<tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>> {
                 fn clone(&self) -> Self {
                     [<$ActorType Ref>]::new(self.name.clone(), self.sender.clone(), self.state.clone())
+                }
+            }
+
+            impl From<(
+                uactor::aliases::ActorName,
+                tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>,
+                <$ActorType as uactor::actor::abstract_actor::Actor>::State
+            )> for [<$ActorType Ref>]<tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>>
+            {
+                fn from((name, sender, state): (
+                    uactor::aliases::ActorName,
+                    tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>,
+                    <$ActorType as uactor::actor::abstract_actor::Actor>::State
+                )) -> Self {
+                    Self {
+                        name,
+                        sender,
+                        state,
+                    }
                 }
             }
 
@@ -116,7 +129,7 @@ macro_rules! generate_actor_ref {
             )*
 
             impl<T> [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
-                pub fn new(name: std::sync::Arc<str>, sender: T, state: std::sync::Arc<<$ActorType as uactor::actor::abstract_actor::Actor>::State>) -> Self {
+                pub fn new(name: std::sync::Arc<str>, sender: T, state: <$ActorType as uactor::actor::abstract_actor::Actor>::State) -> Self {
                     let name = std::sync::Arc::from(name);
                     Self { name, sender, state }
                 }

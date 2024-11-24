@@ -1,5 +1,7 @@
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -16,13 +18,19 @@ pub struct Actor1;
 
 #[derive(Default)]
 pub struct Actor1State {
-    pub counter: AtomicU8,
+    counter: AtomicU8,
+}
+
+impl Actor1State {
+    pub fn get_counter(&self) -> u8 {
+        self.counter.load(Ordering::Relaxed)
+    }
 }
 
 impl Actor for Actor1 {
     type Context = Context;
     type Inject = ();
-    type State = Actor1State;
+    type State = Arc<Actor1State>;
 }
 
 impl Handler<PingMsg> for Actor1 {
@@ -49,11 +57,10 @@ async fn main() -> anyhow::Result<()> {
 
     let mut system = System::global().build();
 
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1Ref<UnboundedSender<Actor1Msg>>>("actor1");
+
     let actor1 = Actor1;
-
-    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
-
-    system.run_actor::<Actor1>(actor1_ref.name()).await?;
+    let (_, handle) = system.spawn_actor(actor1_ref.name(), actor1, actor1_ref.state().clone(), (actor1_stream)).await?;
 
     let pong = actor1_ref.send(PingMsg);
     let pong = actor1_ref.send(PingMsg);
@@ -61,7 +68,9 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    assert_eq!(actor1_ref.state.counter.load(Ordering::Relaxed), 3);
+    assert_eq!(actor1_ref.state.get_counter(), 3);
 
+    // stop the actor
+    handle.abort_handle().abort();
     Ok(())
 }

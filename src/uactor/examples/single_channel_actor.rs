@@ -1,4 +1,6 @@
+use tokio::sync::mpsc::UnboundedSender;
 use uactor::actor::abstract_actor::MessageSender;
+use uactor::aliases::ActorName;
 use uactor::system::System;
 
 use crate::actor1::Actor1;
@@ -18,6 +20,7 @@ mod messages {
 }
 
 mod actor1 {
+    use tokio::sync::mpsc::UnboundedReceiver;
     use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
     use uactor::actor::context::Context;
 
@@ -55,8 +58,9 @@ async fn main() -> anyhow::Result<()> {
 
     let mut system = System::global().build();
 
-    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
-    system.run_actor::<Actor1>(actor1_ref.name()).await?;
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, Actor1Msg, Actor1Ref<UnboundedSender<Actor1Msg>>>("actor1");
+
+    system.spawn_actor(actor1_ref.name(), actor1, (actor1_stream)).await?;
 
     let pong = actor1_ref.ask(PingMsg).await?;
     println!("main: received {pong:?} message");

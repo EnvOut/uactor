@@ -11,6 +11,7 @@ description = "The fastest and most modular actor system that doesn't force you 
 
 [dependencies]
 tokio = { workspace = true }
+tokio-stream = "0.1"
 futures = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

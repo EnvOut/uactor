@@ -399,13 +399,15 @@ pub mod extensions {
 
 pub mod actor_registry {
     use crate::actor::context::extensions::IdHasher;
-    use crate::data::data_publisher::{TryClone, TryCloneError};
+    use crate::data::data_publisher::{DataPublisher, TryClone, TryCloneError};
     use std::any::{Any, TypeId};
     use std::collections::HashMap;
     use std::fmt;
     use std::hash::BuildHasherDefault;
     use std::ops::{Deref, DerefMut};
     use std::sync::Arc;
+    use crate::actor::abstract_actor::Actor;
+    use crate::actor::message::Message;
 
     type AnyBoxed = Box<dyn Any + Send + Sync>;
 
@@ -421,33 +423,47 @@ pub mod actor_registry {
             Self::default()
         }
 
-        // TODO: docs
-        pub fn insert<T: Send + Sync + 'static>(
+        pub fn register_ref<A, M, D>(
             &mut self,
             actor_name: Arc<str>,
-            val: T,
-        ) -> Option<T> {
-            let entry = self.inner.entry(TypeId::of::<T>()).or_default();
-            entry.insert(actor_name, Box::new(val)).and_then(|boxed| {
+            channel: D,
+            state: A::State
+        ) -> Option<D>
+        where
+            A: Actor,
+            M: Message,
+            D: DataPublisher<Item = M> + Send + Sync + 'static,
+        {
+            let entry = self.inner.entry(TypeId::of::<A>()).or_default();
+            entry.insert(actor_name, Box::new((channel, state))).and_then(|boxed| {
                 (boxed as Box<dyn Any + 'static>)
                     .downcast()
                     .ok()
                     .map(|boxed| *boxed)
             })
         }
-
         // TODO: docs
-        pub fn get_all<T: Send + Sync + 'static>(&self) -> Option<Vec<&T>> {
+        pub fn get_all<A, M, D>(&self) -> Option<Vec<&(D, A::State)>>
+        where
+            A: Actor,
+            M: Message,
+            D: DataPublisher<Item = M> + Send + Sync + 'static
+        {
             self.inner
-                .get(&TypeId::of::<T>())?
+                .get(&TypeId::of::<A>())?
                 .values()
                 .map(|boxed| (&**boxed as &(dyn Any + 'static)).downcast_ref())
-                .collect::<Option<Vec<&T>>>()
+                .collect::<Option<Vec<&(D, A::State)>>>()
         }
 
         // TODO: docs
-        pub fn get_actor<T: Send + Sync + 'static>(&self, actor_name: Arc<str>) -> Option<&T> {
-            let boxed_actor_ref = self.inner.get(&TypeId::of::<T>())?.get(&actor_name)?;
+        pub fn get_actor_ref<T, R>(&self, actor_name: Arc<str>) -> Option<&R>
+        where
+            T: Send + Sync + 'static,
+            R: 'static,
+        {
+            let group_by_type = self.inner.get(&TypeId::of::<T>())?;
+            let boxed_actor_ref = group_by_type.get(&actor_name)?;
             (&**boxed_actor_ref as &(dyn Any + 'static)).downcast_ref()
         }
 

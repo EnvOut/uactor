@@ -1,4 +1,5 @@
 use time::ext::NumericalStdDuration;
+use tokio::sync::mpsc::UnboundedSender;
 use uactor::actor::abstract_actor::MessageSender;
 
 use uactor::system::System;
@@ -35,10 +36,11 @@ mod actor1 {
     use uactor::actor::abstract_actor::{Actor, HandleResult, Handler, MessageSender};
     use uactor::actor::context::extensions::Service;
     use uactor::actor::context::Context;
+    use uactor::data::data_publisher::DataPublisher;
     use uactor::dependency_injection::{Inject, InjectError};
     use uactor::system::System;
 
-    use crate::actor2::{Actor2Msg, Actor2Ref};
+    use crate::actor2::{Actor2, Actor2Msg, Actor2Ref};
     use crate::messages::{MessageWithoutReply, PingMsg, PongMsg, PrintMessage};
     use crate::services::Service1;
 
@@ -56,8 +58,7 @@ mod actor1 {
             Self: Sized,
         {
             let service1 = system.get_service()?;
-            let actor2_ref =
-                system.get_actor::<Actor2Ref<UnboundedSender<Actor2Msg>>>("actor2".into())?;
+            let actor2_ref = system.get_actor::<Actor2, Actor2Msg, _, Actor2Ref<_>>("actor2".into())?;
             Ok(Services::new(service1, actor2_ref))
         }
     }
@@ -207,16 +208,17 @@ async fn main() -> anyhow::Result<()> {
         .build();
 
     // Init actor (instance + spawn actor)
-    let actor1 = Actor1;
-    let (actor1_ref, _) = uactor::spawn_with_ref!(system, actor1: Actor1);
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1Ref<UnboundedSender<Actor1Msg>>>("actor1");
 
     // Init actor2 (instance + spawn actor)
-    let actor2 = Actor2;
-    let (actor2_ref, _) = uactor::spawn_with_ref!(system, actor2: Actor2);
+    let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2Ref<UnboundedSender<Actor2Msg>>>("actor2");
 
     // Run actors
-    system.run_actor::<Actor1>(actor1_ref.name()).await?;
-    system.run_actor::<Actor2>(actor2_ref.name()).await?;
+    let actor1 = Actor1;
+    system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), (actor1_stream)).await?;
+
+    let actor2 = Actor2;
+    system.spawn_actor(actor2_ref.name(), actor2, *actor2_ref.state(), (actor2_stream)).await?;
 
     // Case #1: send messages and call injected (not from &self) services inside handlers
     println!(

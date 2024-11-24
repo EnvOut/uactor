@@ -15,7 +15,7 @@ pub enum InjectError {
 /// Sample:
 /// ```
 ///# use uactor::actor::context::extensions::Service;
-/// use uactor::di::{Inject, InjectError};
+/// use uactor::dependency_injection::{Inject, InjectError};
 ///# use uactor::system::System;
 ///
 /// pub struct References {
@@ -41,12 +41,9 @@ pub trait Inject {
 }
 
 pub mod inject_impls {
-    use crate::actor::abstract_actor::NamedActorRef;
-    use crate::actor::context::extensions::Service;
-    use crate::data::data_publisher::TryClone;
+    use crate::actor::abstract_actor::Actor;
     use crate::dependency_injection::{Inject, InjectError};
     use crate::system::System;
-    use std::sync::Arc;
 
     impl Inject for () {
         async fn inject(_: &System) -> Result<Self, InjectError>
