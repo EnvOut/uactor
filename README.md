@@ -17,8 +17,8 @@ Examples can be found [here](src/uactor/examples).
 7. Implemented Dependency Injection on pre-start stage to solve cross-references problem ("Actor#1" needs a reference to the "Actor#2", and "Actor#2" needs a reference to "Actor#1")  
 [Example: dependency injection](src/uactor/examples/dependency_injection.rs)
 8. Integration with tokio/tracing, including tracing of actor lifecycle, messages, and handlers
-9. Implemented support for actors for which it is necessary to work with multiple message sources (channels) [Example: Multi channel](src/uactor/examples/multiple_incoming_channels.rs)
-10. Implemented shared state for actors [Example: Shared state](src/uactor/examples/shared_state.rs) 
+9. Implemented support for actors for which it is necessary to work with multiple message sources (channels) [Example: Multi channel](./src/uactor/examples/multiple_incoming_channels.rs)
+10. Implemented shared state for actors [Example: Shared state](./src/uactor/examples/shared_state.rs) 
 
 ### Actor lifecycle
 ![Lifecycle.png](docs/assets/Lifecycle.png)
