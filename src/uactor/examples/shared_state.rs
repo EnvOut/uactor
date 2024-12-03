@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use time::ext::NumericalStdDuration;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -28,6 +29,7 @@ impl Actor1State {
 
 impl Actor for Actor1 {
     type Context = Context;
+    type RouteMessage = Actor1Msg;
     type Inject = ();
     type State = Arc<Actor1State>;
 }
@@ -54,9 +56,9 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let mut system = System::global().build();
+    let mut system = System::global();
 
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
 
     let actor1 = Actor1;
     let (_, handle) = system.spawn_actor(actor1_ref.name(), actor1, actor1_ref.state().clone(), (actor1_stream)).await?;
@@ -65,9 +67,9 @@ async fn main() -> anyhow::Result<()> {
     actor1_ref.send(PingMsg)?;
     actor1_ref.send(PingMsg)?;
 
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(1.std_nanoseconds()).await;
 
-    assert_eq!(actor1_ref.state.get_counter(), 3);
+    assert_eq!(actor1_ref.state.get_counter(), 3, "Counter should be 3");
 
     // stop the actor
     handle.abort_handle().abort();

@@ -1,8 +1,8 @@
+use crate::actor::abstract_actor::{Actor, HandleError};
 use crate::actor::message::Message;
 use crate::system::System;
 use std::future::Future;
 use std::sync::Arc;
-use crate::actor::abstract_actor::{Actor, HandleError};
 
 pub type ContextResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type ContextInitializationError<T> = Result<T, String>;
@@ -17,9 +17,9 @@ pub trait ActorContext: Sized + Unpin + 'static {
         Ok(())
     }
     #[inline]
-    fn after_iteration(&mut self) -> () { }
+    fn after_iteration(&mut self) -> () {}
     #[inline]
-    fn on_error(&mut self, _error: &HandleError) -> () { }
+    fn on_error(&mut self, _error: &HandleError) -> () {}
     fn kill(&mut self);
     fn get_name(&self) -> &str;
     #[allow(clippy::wrong_self_convention)]
@@ -326,7 +326,9 @@ pub mod extensions {
 }
 
 pub mod actor_registry {
+    use crate::actor::abstract_actor::Actor;
     use crate::actor::context::extensions::IdHasher;
+    use crate::actor::message::Message;
     use crate::data::data_publisher::{DataPublisher, TryClone, TryCloneError};
     use std::any::{Any, TypeId};
     use std::collections::HashMap;
@@ -334,8 +336,6 @@ pub mod actor_registry {
     use std::hash::BuildHasherDefault;
     use std::ops::{Deref, DerefMut};
     use std::sync::Arc;
-    use crate::actor::abstract_actor::Actor;
-    use crate::actor::message::Message;
 
     type AnyBoxed = Box<dyn Any + Send + Sync>;
 
@@ -355,7 +355,7 @@ pub mod actor_registry {
             &mut self,
             actor_name: Arc<str>,
             channel: D,
-            state: A::State
+            state: A::State,
         ) -> Option<D>
         where
             A: Actor,
@@ -363,19 +363,21 @@ pub mod actor_registry {
             D: DataPublisher<Item = M> + Send + Sync + 'static,
         {
             let entry = self.inner.entry(TypeId::of::<A>()).or_default();
-            entry.insert(actor_name, Box::new((channel, state))).and_then(|boxed| {
-                (boxed as Box<dyn Any + 'static>)
-                    .downcast()
-                    .ok()
-                    .map(|boxed| *boxed)
-            })
+            entry
+                .insert(actor_name, Box::new((channel, state)))
+                .and_then(|boxed| {
+                    (boxed as Box<dyn Any + 'static>)
+                        .downcast()
+                        .ok()
+                        .map(|boxed| *boxed)
+                })
         }
         // TODO: docs
         pub fn get_all<A, M, D>(&self) -> Option<Vec<&(D, A::State)>>
         where
             A: Actor,
             M: Message,
-            D: DataPublisher<Item = M> + Send + Sync + 'static
+            D: DataPublisher<Item = M> + Send + Sync + 'static,
         {
             self.inner
                 .get(&TypeId::of::<A>())?

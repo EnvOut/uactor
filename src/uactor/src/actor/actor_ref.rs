@@ -1,19 +1,22 @@
-
 /// Example:
 /// ```
 ///# use std::future::Future;
 /// use uactor::actor::abstract_actor::{Actor, HandleResult};
 /// use uactor::actor::context::Context;
 /// use uactor::system::System;
-/// let mut system = System::global().build();
-/// pub struct Actor1;
-/// impl Actor for Actor1 { type Context = Context; type Inject = (); type State = (); }
-/// let actor1 = Actor1;
-/// use uactor::actor::message::{Message};
+/// let mut system = System::global();
+///
+/// use uactor::actor::message::Message;
 /// use uactor::message_impl;
 /// pub struct Ping;
 /// impl Message for Ping { fn static_name() -> &'static str { "Ping" } }
+///
+/// pub struct Actor1;
+/// impl Actor for Actor1 { type Context = Context;type RouteMessage = (); type Inject = (); type State = (); }
+/// let actor1 = Actor1;
+///
 /// impl uactor::actor::abstract_actor::Handler<Ping> for Actor1 { async fn handle(&mut self, inject: &mut Self::Inject, msg: Ping, ctx: &mut Self::Context, state: &Self::State) -> HandleResult { todo!() }  }
+///
 /// uactor::generate_actor_ref!(Actor1, { });
 /// ```
 /// let (mut actor1_ref, handle) = uactor::spawn_with_ref!(system, actor1: Actor1);
