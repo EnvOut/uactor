@@ -1,21 +1,24 @@
-use crate::actor::abstract_actor::Actor;
+use crate::actor;
+use crate::actor::abstract_actor::{Actor, Handler};
 use crate::actor::context::actor_registry::{ActorRegistry, ActorRegistryErrors};
 use crate::actor::context::extensions::{ExtensionErrors, Extensions, Service};
 use crate::actor::context::ActorContext;
+use crate::actor::message::Message;
+use crate::actor::select::{ActorSelect, SelectResult};
+use crate::aliases::ActorName;
 use crate::data::data_publisher::{DataPublisher, TryClone, TryCloneError};
 use crate::dependency_injection::{Inject, InjectError};
-use crate::actor::select::ActorSelect;
 use crate::system::builder::SystemBuilder;
 use std::any::Any;
 use std::collections::HashMap;
 use std::pin::pin;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, RwLock};
 use tokio::task::JoinHandle;
-use crate::actor;
-use crate::actor::message::Message;
-use crate::aliases::{ActorName};
+use crate::system::global::GlobalSystem;
+
+pub mod global;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ActorRunningError {
@@ -38,7 +41,15 @@ pub struct System {
 }
 
 impl System {
-    pub fn register_ref<A, M, R>(&mut self, actor_name: &str) -> (R, tokio::sync::mpsc::UnboundedReceiver<M>)
+    pub fn extension<T: Send + Sync + 'static>(&mut self, data: T) -> &mut Self {
+        self.extensions.insert(Service(data));
+        self
+    }
+
+    pub async fn register_ref<A, M, R>(
+        &mut self,
+        actor_name: &str,
+    ) -> (R, tokio::sync::mpsc::UnboundedReceiver<M>)
     where
         A: Actor,
         M: Message + Send + 'static,
@@ -61,15 +72,13 @@ impl System {
         actor_name: Arc<str>,
         mut actor: A,
         state: A::State,
-        mut select: S,
+        mut aggregator: S,
     ) -> Result<(<A as Actor>::State, JoinHandle<()>), ActorRunningError>
     where
-        A: Actor + Send,
+        A: Handler<<A as Actor>::RouteMessage> + Actor + Send,
         S: ActorSelect<A> + Send + 'static,
         <A as Actor>::Inject: Inject + Sized + Send,
     {
-        // let actor_name: Arc<str> = actor_name.to_owned().into();
-
         let system_name = self.name.clone();
 
         let mut ctx = A::Context::create::<A>(self, actor_name.clone())
@@ -94,21 +103,34 @@ impl System {
                     }
                 }
 
+
                 actor.on_start(&mut inject, &mut ctx).await;
 
                 // main loop
                 while ctx.is_alive() {
                     tracing::trace!("iteration of the process: {actor_name:?}");
-                    let res = select.select(&mut inject, &mut ctx, &state, &mut actor).await;
-                    ctx.after_iteration();
 
-                    if let Err(err) = res {
-                        tracing::error!("An error occurred while message handling by the \"{}\", error message: \"{}\"", ctx.get_name(), err);
+                    let message_res = actor.select_message(&mut ctx, &mut aggregator).await;
 
-                        ctx.on_error(&err);
-                        actor.on_error(&mut ctx, err).await;
-                    } else {
-                        tracing::trace!("{actor_name:?} successful iteration");
+                    match message_res {
+                        Ok(message) => {
+                            let res = actor.handle(&mut inject, message, &mut ctx, &state).await;
+
+                            ctx.after_iteration();
+
+                            if let Err(err) = res {
+                                tracing::error!("An error occurred while message handling by the \"{}\", error message: \"{}\"", ctx.get_name(), err);
+
+                                ctx.on_error(&err);
+                                actor.on_error(&mut ctx, err).await;
+                            } else {
+                                tracing::trace!("{actor_name:?} successful iteration");
+                            }
+                        }
+                        Err(channel_error) => {
+                            actor.on_select_error(channel_error, &mut ctx).await;
+                            continue;
+                        }
                     }
                 }
                 // call on_die
@@ -130,9 +152,10 @@ impl System {
 impl System {}
 
 impl System {
-    pub fn global() -> SystemBuilder {
-        SystemBuilder::new_global()
+    pub fn global() -> GlobalSystem {
+        GlobalSystem {}
     }
+
     pub fn name(system_name: String) -> SystemBuilder {
         SystemBuilder::new(system_name, Extensions::new())
     }
@@ -176,7 +199,7 @@ impl System {
     where
         A: Actor,
         M: Message,
-        D: DataPublisher<Item = M> + Send + Sync + 'static
+        D: DataPublisher<Item = M> + Send + Sync + 'static,
     {
         let actor_ref = self
             .actor_registry
@@ -231,7 +254,7 @@ pub mod builder {
     }
 
     impl SystemBuilder {
-        pub fn new_global() -> Self {
+        pub (crate) fn new_global() -> Self {
             Self {
                 name: GLOBAL_SYSTEM_NAME.to_owned(),
                 extensions: Extensions::new(),

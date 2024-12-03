@@ -1,9 +1,11 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, oneshot, watch};
 use tokio::time::Interval;
 
-use crate::actor::message::IntervalMessage;
+use crate::actor::message::{IntervalMessage, Message};
 
 pub type DataSourceResult<T> = Result<T, DataSourceErrors>;
 
@@ -17,6 +19,9 @@ pub enum DataSourceErrors {
 
     #[error(transparent)]
     IoError(#[from] std::io::Error),
+
+    #[error("Custom error raised: {0}")]
+    CustomError(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl From<broadcast::error::RecvError> for DataSourceErrors {

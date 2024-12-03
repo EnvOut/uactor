@@ -3,6 +3,9 @@ use crate::actor::message::Message;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
+use crate::actor::select::{ActorSelect, SelectError, SelectResult};
+use crate::data::datasource::{DataSource, DataSourceErrors};
 
 pub trait State: std::any::Any + Send + 'static {}
 impl<T: std::any::Any + Send + 'static> State for T {}
@@ -13,6 +16,8 @@ use crate::dependency_injection::Inject;
 pub trait Actor: Sized + Unpin + 'static {
     /// Actor execution context type
     type Context: ActorContext + Send;
+
+    type RouteMessage: Message + Send;
 
     type Inject: Inject + Sized;
 
@@ -27,11 +32,33 @@ pub trait Actor: Sized + Unpin + 'static {
         inject: &mut Self::Inject,
         ctx: &mut Self::Context,
     ) -> impl Future<Output = ()> + Send {
-        async {  }
+        async {}
     }
 
-    fn on_error(&mut self, ctx: &mut Self::Context, error: HandleError) -> impl Future<Output=()> + Send {
-        async move  {
+    fn select_message<S>(
+        &mut self,
+        ctx: &mut Self::Context,
+        aggregator: &mut S
+    ) -> impl Future<Output = SelectResult<Self>> + Send
+    where
+        S: ActorSelect<Self> + Send + 'static, Self: Send
+    {
+        aggregator.select()
+    }
+
+    #[inline]
+    fn on_select_error(&mut self, err: SelectError, ctx: &mut Self::Context) -> impl Future<Output=()> + Send {
+        tracing::error!("Received error on datasource select: {:?}", err);
+        ctx.kill();
+        async {}
+    }
+
+    fn on_error(
+        &mut self,
+        ctx: &mut Self::Context,
+        error: HandleError,
+    ) -> impl Future<Output = ()> + Send {
+        async move {
             tracing::error!("Actor error: {:?}", error);
         }
     }
@@ -55,7 +82,6 @@ where
 pub type HandleError = Box<dyn std::error::Error + Send + Sync>;
 
 pub type HandleResult = Result<(), HandleError>;
-
 
 #[cfg(not(feature = "async_sender"))]
 pub trait MessageSender<M>

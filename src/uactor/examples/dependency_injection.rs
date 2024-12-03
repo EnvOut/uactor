@@ -58,6 +58,7 @@ mod actor1 {
 
     impl Actor for Actor1 {
         type Context = Context;
+        type RouteMessage = Actor1Msg;
         type Inject = Services;
         type State = ();
     }
@@ -86,7 +87,7 @@ mod actor1 {
             Services { actor2_ref, .. }: &mut Self::Inject,
             msg: MessageWithoutReply,
             _ctx: &mut Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received {msg:?} message, sending PrintMessage to the actor2");
             actor2_ref.send(PrintMessage::new(msg.into()))?;
@@ -124,6 +125,7 @@ mod actor2 {
 
     impl Actor for Actor2 {
         type Context = Context;
+        type RouteMessage = Actor2Msg;
         type Inject = Services;
         type State = ();
     }
@@ -196,15 +198,16 @@ async fn main() -> anyhow::Result<()> {
 
     // Init system and register services
     let mut system = System::global()
-        .extension(service1)
-        .extension(service2)
-        .build();
+        .with(|mut system| {
+            system.extension(service1.clone())
+                .extension(service2.clone());
+        }).await;
 
     // Init actor (instance + spawn actor)
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
 
     // Init actor2 (instance + spawn actor)
-    let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2MpscRef>("actor2");
+    let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2MpscRef>("actor2").await;
 
     // Run actors
     let actor1 = Actor1;
@@ -214,17 +217,16 @@ async fn main() -> anyhow::Result<()> {
     system.spawn_actor(actor2_ref.name(), actor2, *actor2_ref.state(), (actor2_stream)).await?;
 
     // Case #1: send messages and call injected (not from &self) services inside handlers
-    println!(
-        "-- Case #1: send messages and call injected (not from &self) services inside handlers"
-    );
+    println!("-- Case #1: send messages and call injected (not from &self) services inside handlers");
     let pong1 = actor1_ref.ask::<PongMsg>(PingMsg).await?;
     let pong2 = actor2_ref.ask::<PongMsg>(PingMsg).await?;
-    println!("main: received {pong1:?} and {pong2:?} messages");
+    println!("main: received {pong1:?} and {pong2:?} messages\n");
 
     // Case #2: send message#1 to actor1 and reply to actor2 without actor2 reference inside message#1
-    println!("\n-- Case #2: send message#1 to actor1 and reply to actor2 without actor2 reference inside message#1");
+    println!("-- Case #2: send message#1 to actor1 and reply to actor2 without actor2 reference inside message#1");
     actor1_ref.send(MessageWithoutReply("login:password".to_owned()))?;
 
+    // wait for actors to finish
     tokio::time::sleep(1.std_milliseconds()).await;
     Ok(())
 }

@@ -1,4 +1,5 @@
 use std::time::Duration;
+use time::ext::NumericalStdDuration;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -6,9 +7,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 use uactor::actor::abstract_actor::MessageSender;
 use uactor::system::System;
 
-use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::actor1::Actor1Msg;
 use crate::actor1::Actor1Ref;
+use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::messages::PingMsg;
 use crate::supervisor::{Supervisor, SupervisorMpscRef, SupervisorMsg, SupervisorRef};
 
@@ -32,6 +33,7 @@ mod actor1 {
 
     impl Actor for Actor1 {
         type Context = Context;
+        type RouteMessage = Actor1Msg;
         type Inject = ();
         type State = ();
     }
@@ -63,6 +65,7 @@ mod supervisor {
 
     impl Actor for Supervisor {
         type Context = Context;
+        type RouteMessage = SupervisorMsg;
         type Inject = ();
         type State = ();
     }
@@ -90,10 +93,10 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let mut system = System::global().build();
+    let mut system = System::global();
 
-    let (supervisor_ref, supervisor_stream) = system.register_ref::<Supervisor, _, SupervisorMpscRef>("supervisor");
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1");
+    let (supervisor_ref, supervisor_stream) = system.register_ref::<Supervisor, _, SupervisorMpscRef>("supervisor").await;
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
 
     // Run supervisor
     let supervisor = Supervisor;
@@ -107,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
     let pong = actor1_ref.ask(PingMsg).await?;
     println!("main: received {pong:?} message");
 
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(1.std_nanoseconds()).await;
 
     Ok(())
 }

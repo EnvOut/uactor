@@ -1,19 +1,15 @@
-use crate::actor::abstract_actor::{Actor, HandleResult, Handler};
-use crate::data::datasource::DataSource;
+use crate::actor::abstract_actor::{Actor, Handler};
 use crate::actor::message::Message;
+use crate::data::datasource::{DataSource, DataSourceErrors, DataSourceResult};
 use std::future::pending;
 
-pub trait ActorSelect<A: Actor + Send> {
-    fn select(
-        &mut self,
-        inject: &mut A::Inject,
-        ctx: &mut <A as Actor>::Context,
-        state: &<A as Actor>::State,
-        actor: &mut A,
-    ) -> impl std::future::Future<Output = SelectResult> + Send;
-}
+pub type SelectError = DataSourceErrors;
 
-pub type SelectResult = HandleResult;
+pub type SelectResult<A: Actor> = DataSourceResult<A::RouteMessage>;
+
+pub trait ActorSelect<A: Actor + Send> {
+    fn select(&mut self) -> impl std::future::Future<Output = SelectResult<A>> + Send;
+}
 
 #[doc(hidden)]
 #[allow(non_snake_case)]
@@ -24,23 +20,22 @@ mod select_from_tuple {
     macro_rules! select_from_tuple {
         ($($T: ident),*) => {
 
-            impl<A, $($T),+> ActorSelect<A> for ($($T),+)
+            impl<MESSAGE, A, $($T),+> ActorSelect<A> for ($($T),+)
                 where
-                    $($T::Item: Message + Send, )*
-                    $($T: DataSource + Send, )*
-                    A: $(Handler<$T::Item> + )* Send,
-                    <A as Actor>::Inject: Send
+                    MESSAGE: Message + Send,
+                    A: Actor<RouteMessage=MESSAGE> + Send,
+                    $($T: DataSource<Item=MESSAGE> + Send, )*
+                    <A as Actor>::Inject: Send,
             {
-                async fn select(&mut self, inject: &mut A::Inject, ctx: &mut <A as Actor>::Context, state: &<A as Actor>::State, actor: &mut A) -> SelectResult {
+                async fn select(&mut self) -> SelectResult<A> {
                     let ($($T, )*) = self;
                     tokio::select! {
                         $(
-                        Ok(msg) = $T.next() => {
-                            let _ = actor.handle(inject, msg, ctx, state).await?;
+                        msg_res = $T.next() => {
+                            msg_res
                         }
                         )*
                     }
-                    Ok(())
                 }
             }
         };
@@ -50,55 +45,23 @@ mod select_from_tuple {
     where
         <A as Actor>::Inject: Send,
     {
-        async fn select(
-            &mut self,
-            _: &mut A::Inject,
-            _: &mut <A as Actor>::Context,
-            _: &<A as Actor>::State,
-            _: &mut A,
-        ) -> SelectResult {
-            pending::<SelectResult>().await
+        async fn select(&mut self) -> SelectResult<A> {
+            pending::<SelectResult<A>>().await
         }
     }
 
-    impl<A, S1> ActorSelect<A> for S1
+    impl<A, C1, M> ActorSelect<A> for C1
     where
-        S1::Item: Message + Send,
-        S1: DataSource + Send,
-        A: Handler<S1::Item> + Send,
+        M: Message + Send,
+        A: Actor<RouteMessage=M> + Send,
+        C1: DataSource<Item=M> + Send,
         <A as Actor>::Inject: Send,
     {
         #[cfg(feature = "tokio_tracing")]
-        async fn select(
-            &mut self,
-            inject: &mut A::Inject,
-            ctx: &mut <A as Actor>::Context,
-            state: &<A as Actor>::State,
-            actor: &mut A,
-        ) -> SelectResult {
+        async fn select(&mut self) -> SelectResult<A> {
             // let message_name = <S1 as DataSource>::Item::static_name();
-            let _: &'static str = type_name::<<S1 as DataSource>::Item>();
-            if let Ok(msg) = self.next().await {
-                actor.handle(inject, msg, ctx, state).await?;
-            } else {
-                tracing::error!("Channel closed");
-            }
-            Ok(())
-        }
-
-        #[cfg(not(feature = "tokio_tracing"))]
-        async fn select(
-            &mut self,
-            inject: &mut A::Inject,
-            ctx: &mut <A as Actor>::Context,
-            actor: &mut A,
-        ) -> SelectResult {
-            if let Ok(msg) = self.next().await {
-                let _ = actor.handle(inject, msg, ctx).await?;
-            } else {
-                tracing::error!("Channel closed");
-            }
-            Ok(())
+            let _: &'static str = type_name::<<C1 as DataSource>::Item>();
+            self.next().await
         }
     }
 

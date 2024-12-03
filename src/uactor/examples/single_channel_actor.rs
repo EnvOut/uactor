@@ -1,11 +1,8 @@
-use tokio::sync::mpsc::UnboundedSender;
 use uactor::actor::abstract_actor::MessageSender;
-use uactor::aliases::ActorName;
 use uactor::system::System;
 
-use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::actor1::Actor1Msg;
-use crate::actor1::Actor1Ref;
+use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::messages::PingMsg;
 
 mod messages {
@@ -20,7 +17,6 @@ mod messages {
 }
 
 mod actor1 {
-    use tokio::sync::mpsc::UnboundedReceiver;
     use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
     use uactor::actor::context::Context;
 
@@ -30,6 +26,7 @@ mod actor1 {
 
     impl Actor for Actor1 {
         type Context = Context;
+        type RouteMessage = Actor1Msg;
         type Inject = ();
         type State = ();
     }
@@ -40,7 +37,7 @@ mod actor1 {
             _: &mut Self::Inject,
             ping: PingMsg,
             _: &mut Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
             let PingMsg(reply) = ping;
@@ -56,9 +53,9 @@ mod actor1 {
 async fn main() -> anyhow::Result<()> {
     let actor1 = Actor1;
 
-    let mut system = System::global().build();
+    let mut system = System::global();
 
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, Actor1Msg, Actor1MpscRef>("actor1");
+    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, Actor1Msg, Actor1MpscRef>("actor1").await;
 
     system.spawn_actor(actor1_ref.name(), actor1, (), actor1_stream).await?;
 
