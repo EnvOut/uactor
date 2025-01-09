@@ -1,4 +1,4 @@
-use crate::actor::context::ActorContext;
+use crate::actor::context::{ActorContext, ContextResult};
 use crate::actor::message::Message;
 use std::future::Future;
 use std::pin::Pin;
@@ -11,6 +11,7 @@ pub trait State: std::any::Any + Send + 'static {}
 impl<T: std::any::Any + Send + 'static> State for T {}
 
 use crate::dependency_injection::Inject;
+use crate::system::System;
 
 #[allow(unused_variables)]
 pub trait Actor: Sized + Unpin + 'static {
@@ -61,6 +62,11 @@ pub trait Actor: Sized + Unpin + 'static {
         async move {
             tracing::error!("Actor error: {:?}", error);
         }
+    }
+
+    #[inline]
+    fn on_die(mut self, ctx: &mut Self::Context, state: &Self::State) -> impl Future<Output = ()> + Send {
+        async {}
     }
 }
 

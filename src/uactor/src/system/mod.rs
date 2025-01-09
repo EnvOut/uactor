@@ -103,7 +103,6 @@ impl System {
                     }
                 }
 
-
                 actor.on_start(&mut inject, &mut ctx).await;
 
                 // main loop
@@ -133,15 +132,20 @@ impl System {
                         }
                     }
                 }
-                // call on_die
+
+                // destroy context
                 match ctx.on_die(actor_name.clone()) {
                     Ok(_) => {
-                        tracing::trace!("The actor: {actor_name:?} is dead");
+                        tracing::trace!("Context of the actor: {actor_name:?} destroyed");
                     }
                     Err(err) => {
-                        tracing::error!("Error during actor die: {err:?}");
+                        tracing::error!("Error during context die of the actor. {actor_name:?}: {err:?}");
                     }
                 }
+
+                // destroy actor as object
+
+                actor.on_die(&mut ctx, &state).await
             })
         };
 
