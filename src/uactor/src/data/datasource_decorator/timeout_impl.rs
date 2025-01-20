@@ -1,10 +1,8 @@
 use crate::actor::message::Message;
 use crate::data::datasource::{DataSource, DataSourceErrors, DataSourceResult};
-use futures::{FutureExt, TryFutureExt};
+use futures::FutureExt;
 use std::future::Future;
 use std::time::Duration;
-use tokio_stream::StreamExt;
-
 #[derive(derive_more::Constructor)]
 pub struct TimeoutDecorator<M, D>
 where

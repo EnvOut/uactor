@@ -1,4 +1,4 @@
-use crate::actor::abstract_actor::{Actor, Handler};
+use crate::actor::abstract_actor::Actor;
 use crate::actor::message::Message;
 use crate::data::datasource::{DataSource, DataSourceErrors, DataSourceResult};
 use std::future::pending;

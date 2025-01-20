@@ -1,17 +1,13 @@
-use crate::actor::context::{ActorContext, ContextResult};
+use crate::actor::context::ActorContext;
 use crate::actor::message::Message;
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::mpsc::Sender;
 use crate::actor::select::{ActorSelect, SelectError, SelectResult};
-use crate::data::datasource::{DataSource, DataSourceErrors};
 
 pub trait State: std::any::Any + Send + 'static {}
 impl<T: std::any::Any + Send + 'static> State for T {}
 
 use crate::dependency_injection::Inject;
-use crate::system::System;
 
 #[allow(unused_variables)]
 pub trait Actor: Sized + Unpin + 'static {
@@ -65,7 +61,7 @@ pub trait Actor: Sized + Unpin + 'static {
     }
 
     #[inline]
-    fn on_die(mut self, ctx: &mut Self::Context, state: &Self::State) -> impl Future<Output = ()> + Send {
+    fn on_die(self, ctx: &mut Self::Context, state: &Self::State) -> impl Future<Output = ()> + Send {
         async {}
     }
 }
@@ -106,9 +102,9 @@ pub trait MessageSender<M>
 where
     M: Message,
 {
-    async fn send(&self, msg: M) -> crate::data::data_publisher::DataPublisherResult;
-    async fn ask<A>(
+    fn send(&self, msg: M) -> impl std::future::Future<Output = crate::data::data_publisher::DataPublisherResult> + Send;
+    fn ask<A>(
         &self,
         f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M,
-    ) -> Result<A, crate::data::data_publisher::DataPublisherErrors>;
+    ) -> impl std::future::Future<Output = Result<A, crate::data::data_publisher::DataPublisherErrors>> + Send;
 }

@@ -41,7 +41,6 @@ pub trait Inject {
 }
 
 pub mod inject_impls {
-    use crate::actor::abstract_actor::Actor;
     use crate::dependency_injection::{Inject, InjectError};
     use crate::system::System;
 

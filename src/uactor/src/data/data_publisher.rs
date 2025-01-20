@@ -26,7 +26,6 @@ mod async_sender {
 
     impl<T: ?Sized> TryClone for &T {
         #[inline(always)]
-        #[rustc_diagnostic_item = "noop_method_clone"]
         fn try_clone(&self) -> Result<Self, TryCloneError> {
             Ok(*self)
         }

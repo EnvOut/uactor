@@ -1,20 +1,15 @@
-use crate::actor;
 use crate::actor::abstract_actor::{Actor, Handler};
 use crate::actor::context::actor_registry::{ActorRegistry, ActorRegistryErrors};
 use crate::actor::context::extensions::{ExtensionErrors, Extensions, Service};
 use crate::actor::context::ActorContext;
 use crate::actor::message::Message;
-use crate::actor::select::{ActorSelect, SelectResult};
+use crate::actor::select::ActorSelect;
 use crate::aliases::ActorName;
-use crate::data::data_publisher::{DataPublisher, TryClone, TryCloneError};
+use crate::data::data_publisher::{DataPublisher, TryCloneError};
 use crate::dependency_injection::{Inject, InjectError};
 use crate::system::builder::SystemBuilder;
-use std::any::Any;
-use std::collections::HashMap;
-use std::pin::pin;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::{oneshot, RwLock};
 use tokio::task::JoinHandle;
 use crate::system::global::GlobalSystem;
 
@@ -36,7 +31,6 @@ pub enum ActorRunningError {
 pub struct System {
     name: Arc<str>,
     extensions: Extensions,
-    initialized_actors: HashMap<Arc<str>, oneshot::Sender<Box<dyn Any + Send>>>,
     actor_registry: ActorRegistry,
 }
 
@@ -55,7 +49,7 @@ impl System {
         M: Message + Send + 'static,
         R: From<(ActorName, UnboundedSender<M>, A::State)>,
     {
-        let (mut tx, rx) = tokio::sync::mpsc::unbounded_channel::<M>();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<M>();
 
         let actor_name: Arc<str> = actor_name.to_owned().into();
         let state = A::State::default();
@@ -284,7 +278,6 @@ pub mod builder {
             System::new(
                 Arc::from(self.name.as_str()),
                 self.extensions,
-                Default::default(),
                 Default::default(),
             )
         }
