@@ -50,8 +50,6 @@ macro_rules! generate_actor_ref {
                     msg: [<$ActorType Msg>],
                     ctx: &mut <Self as uactor::actor::abstract_actor::Actor>::Context,
                     state: &<$ActorType as uactor::actor::abstract_actor::Actor>::State,
-                    // state: &std::sync::Arc<AState>
-                    // state: &Arc<{Self as uactor::actor::abstract_actor::Actor}>::State
                 ) -> uactor::actor::abstract_actor::HandleResult {
                     match msg {
                         $(
@@ -104,7 +102,7 @@ macro_rules! generate_actor_ref {
             }
 
             $(
-                #[cfg(not(feature = "async_sender"))]
+                // #[cfg(not(feature = "async_sender"))]
                 impl <T>uactor::actor::abstract_actor::MessageSender<$Message> for [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
                     fn send(&self, msg: $Message) -> uactor::data::data_publisher::DataPublisherResult {
                         self.sender.publish([<$ActorType Msg>]::$Message(msg))
@@ -118,19 +116,19 @@ macro_rules! generate_actor_ref {
                     }
                 }
 
-                #[cfg(feature = "async_sender")]
-                impl <T>uactor::actor::abstract_actor::MessageSender<$Message> for [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
-                    async fn send(&self, msg: $Message) -> uactor::data::data_publisher::DataPublisherResult {
-                        self.sender.publish([<$ActorType Msg>]::$Message(msg)).await
-                    }
-
-                    async fn ask<A>(&self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> $Message) -> Result<A, uactor::data::data_publisher::DataPublisherErrors> {
-                        let (tx, rx) = tokio::sync::oneshot::channel::<A>();
-                        let message = f(tx);
-                        self.sender.publish([<$ActorType Msg>]::$Message(message))?;
-                        rx.await.map_err(uactor::data::data_publisher::DataPublisherErrors::from)
-                    }
-                }
+                // #[cfg(feature = "async_sender")]
+                // impl <T>uactor::actor::abstract_actor::MessageSender<$Message> for [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
+                //     async fn send(&self, msg: $Message) -> uactor::data::data_publisher::DataPublisherResult {
+                //         self.sender.publish([<$ActorType Msg>]::$Message(msg)).await
+                //     }
+                //
+                //     async fn ask<A>(&self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> $Message) -> Result<A, uactor::data::data_publisher::DataPublisherErrors> {
+                //         let (tx, rx) = tokio::sync::oneshot::channel::<A>();
+                //         let message = f(tx);
+                //         self.sender.publish([<$ActorType Msg>]::$Message(message))?;
+                //         rx.await.map_err(uactor::data::data_publisher::DataPublisherErrors::from)
+                //     }
+                // }
             )*
 
             impl<T> [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
