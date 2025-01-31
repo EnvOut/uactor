@@ -62,6 +62,7 @@ macro_rules! generate_actor_ref {
                 }
             }
 
+            // Type alias for actor reference use: `UserMpscRef` insted of the full type: `UserRef<tokio::sync::mpsc::UnboundedSender<UserMsg>>`
             pub type [<$ActorType MpscRef>] = [<$ActorType Ref>]<tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>>;
 
             pub struct [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
@@ -101,6 +102,14 @@ macro_rules! generate_actor_ref {
                 }
             }
 
+            // send [<$ActorType Msg>] to actor
+            impl [<$ActorType Ref>]<tokio::sync::mpsc::UnboundedSender<[<$ActorType Msg>]>> {
+                fn send_msg(&self, msg: [<$ActorType Msg>]) -> uactor::data::data_publisher::DataPublisherResult {
+                    uactor::data::data_publisher::DataPublisher::publish(&self.sender, msg)
+                }
+            }
+
+            // impliment MessageSender for each message variant ($Message)
             $(
                 // #[cfg(not(feature = "async_sender"))]
                 impl <T>uactor::actor::abstract_actor::MessageSender<$Message> for [<$ActorType Ref>]<T> where T: uactor::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
