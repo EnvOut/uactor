@@ -1,6 +1,6 @@
 use crate::actor::message::Message;
 use crate::data::datasource::DataSource;
-use crate::data::datasource_decorator::timeout_impl::TimeoutDecorator;
+use crate::data::datasource_combinators::timeout_impl::TimeoutDecorator;
 use std::time::Duration;
 
 mod timeout_impl;

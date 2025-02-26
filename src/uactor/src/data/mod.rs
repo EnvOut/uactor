@@ -1,3 +1,3 @@
 pub mod data_publisher;
 pub mod datasource;
-pub mod datasource_decorator;
+pub mod datasource_combinators;

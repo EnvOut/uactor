@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use uactor::data::datasource_decorator::DataSourceMapExt;
+use uactor::data::datasource_combinators::DataSourceMapExt;
 use uactor::system::System;
 
 use crate::actor1::{Actor1, Actor1Msg};

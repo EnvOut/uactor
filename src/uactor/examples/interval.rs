@@ -9,7 +9,7 @@ use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::messages::{AskTicksCountMsg, TicksCount, UpdateMetrics};
 use more_asserts as ma;
 use uactor::actor::message::IntervalMessage;
-use uactor::data::datasource_decorator::DataSourceMapExt;
+use uactor::data::datasource_combinators::DataSourceMapExt;
 
 mod messages {
     use uactor::actor::message::{Message, Reply};
@@ -95,7 +95,7 @@ mod actor1 {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use uactor::data::datasource_decorator::DataSourceMapExt;
+    use uactor::data::datasource_combinators::DataSourceMapExt;
     let mut system = System::global();
 
     // 100 milliseconds interval for updating metrics

@@ -5,7 +5,7 @@ use std::future::pending;
 
 pub type SelectError = DataSourceErrors;
 
-pub type SelectResult<A: Actor> = DataSourceResult<A::RouteMessage>;
+pub type SelectResult<A> = DataSourceResult<<A as Actor>::RouteMessage>;
 
 pub trait ActorSelect<A: Actor + Send> {
     fn select(&mut self) -> impl std::future::Future<Output = SelectResult<A>> + Send;
