@@ -40,9 +40,10 @@ impl System {
         self
     }
 
-    pub async fn register_ref<A, M, R>(
+    pub async fn register_ref_with_state<A, M, R>(
         &mut self,
         actor_name: &str,
+        state: A::State,
     ) -> (R, tokio::sync::mpsc::UnboundedReceiver<M>)
     where
         A: Actor,
@@ -52,13 +53,26 @@ impl System {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<M>();
 
         let actor_name: Arc<str> = actor_name.to_owned().into();
-        let state = A::State::default();
         let old_ref = self.actor_registry.register_ref::<A, M, UnboundedSender<M>>(actor_name.clone(), tx.clone(), state.clone());
         if let Some(_old_ref) = old_ref {
             tracing::warn!("The actor: {actor_name:?} has already been registered, old ref has been replaced");
         }
 
         (R::from((actor_name, tx, state)), rx)
+    }
+
+    pub async fn register_ref<A, M, R>(
+        &mut self,
+        actor_name: &str,
+    ) -> (R, tokio::sync::mpsc::UnboundedReceiver<M>)
+    where
+        A: Actor,
+        A::State: Default,
+        M: Message + Send + 'static,
+        R: From<(ActorName, UnboundedSender<M>, A::State)>,
+    {
+        let state = A::State::default();
+        self.register_ref_with_state::<A, M, R>(actor_name, state).await
     }
 
     pub async fn spawn_actor<A, S>(

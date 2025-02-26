@@ -1,7 +1,6 @@
 use crate::actor::context::ActorContext;
 use crate::actor::message::Message;
 use std::future::Future;
-use std::sync::Arc;
 use crate::actor::select::{ActorSelect, SelectError, SelectResult};
 
 pub trait State: std::any::Any + Send + 'static {}
@@ -18,11 +17,7 @@ pub trait Actor: Sized + Unpin + 'static {
 
     type Inject: Inject + Sized;
 
-    type State: Default + Send + Sync + Clone;
-
-    fn create_state(&mut self) -> Arc<Self::State> {
-        Arc::new(Default::default())
-    }
+    type State: Send + Sync + Clone;
 
     fn on_start(
         &mut self,

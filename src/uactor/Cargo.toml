@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.13.4"
+version = "0.14.1"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"

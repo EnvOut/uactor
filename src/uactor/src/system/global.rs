@@ -25,11 +25,27 @@ impl GlobalSystem {
     ) -> (R, tokio::sync::mpsc::UnboundedReceiver<M>)
     where
         A: Actor,
+        A::State: Default,
         M: Message + Send + 'static,
         R: From<(ActorName, UnboundedSender<M>, A::State)>,
     {
-        let mut system  = GLOBAL_SYSTEM.write().await;
-        system.register_ref::<A, M , R>(actor_name).await
+        let mut system = GLOBAL_SYSTEM.write().await;
+        system.register_ref::<A, M, R>(actor_name).await
+    }
+
+    pub async fn register_ref_with_state<A, M, R>(
+        &mut self,
+        actor_name: &str,
+        state: A::State,
+    ) -> (R, tokio::sync::mpsc::UnboundedReceiver<M>)
+    where
+        A: Actor,
+        A::State: Default,
+        M: Message + Send + 'static,
+        R: From<(ActorName, UnboundedSender<M>, A::State)>,
+    {
+        let mut system = GLOBAL_SYSTEM.write().await;
+        system.register_ref_with_state::<A, M, R>(actor_name, state).await
     }
 
     pub async fn spawn_actor<A, S>(
