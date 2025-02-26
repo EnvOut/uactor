@@ -1,4 +1,3 @@
-use std::time::Duration;
 use time::ext::NumericalStdDuration;
 use tokio::sync::mpsc;
 use tracing::level_filters::LevelFilter;
@@ -36,12 +35,11 @@ pub mod messages {
 }
 
 pub mod actor1 {
-    use std::future::Future;
+    use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
     use tokio::sync::mpsc;
     use uactor::actor::abstract_actor::{Actor, HandleResult, Handler};
     use uactor::actor::context::Context;
     use uactor::actor::message::Message;
-    use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
     pub enum Actor1Msg {
         PingPongMsg(PingPongMsg),
@@ -128,7 +126,7 @@ pub mod actor2 {
             _: &mut Self::Inject,
             msg: RespMsg,
             _: &mut Self::Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("actor2 handle RespMsg: {msg:?}");
             Ok(())

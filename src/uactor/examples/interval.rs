@@ -1,5 +1,4 @@
 use time::ext::NumericalStdDuration;
-use tokio_stream::StreamExt;
 use uactor::actor::abstract_actor::MessageSender;
 
 use uactor::system::System;
@@ -9,7 +8,6 @@ use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::messages::{AskTicksCountMsg, TicksCount, UpdateMetrics};
 use more_asserts as ma;
 use uactor::actor::message::IntervalMessage;
-use uactor::data::datasource_combinators::DataSourceMapExt;
 
 mod messages {
     use uactor::actor::message::{Message, Reply};

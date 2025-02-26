@@ -17,7 +17,7 @@ mod messages {
     pub struct MessageWithoutReply(pub String);
 
     #[derive(derive_more::Constructor, Debug)]
-    pub struct PrintMessage(String);
+    pub struct PrintMessage(pub String);
 
     #[derive(Debug)]
     pub struct PongMsg;
@@ -29,7 +29,6 @@ mod actor1 {
     use uactor::actor::abstract_actor::{Actor, HandleResult, Handler, MessageSender};
     use uactor::actor::context::extensions::Service;
     use uactor::actor::context::Context;
-    use uactor::data::data_publisher::DataPublisher;
     use uactor::dependency_injection::{Inject, InjectError};
     use uactor::system::System;
 
@@ -69,7 +68,7 @@ mod actor1 {
             Services { service1, .. }: &mut Self::Inject,
             ping: PingMsg,
             _ctx: &mut Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("actor1: Received ping message");
 
@@ -136,7 +135,7 @@ mod actor2 {
             Services(service2): &mut Self::Inject,
             ping: PingMsg,
             _ctx: &mut Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("actor2: Received ping message");
 
@@ -152,9 +151,9 @@ mod actor2 {
         async fn handle(
             &mut self,
             _: &mut Self::Inject,
-            msg: PrintMessage,
+            PrintMessage(msg): PrintMessage,
             _ctx: &mut Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("actor2: Received message: {msg:?}");
             Ok(())
@@ -198,7 +197,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Init system and register services
     let mut system = System::global()
-        .with(|mut system| {
+        .with(|system| {
             system.extension(service1.clone())
                 .extension(service2.clone());
         }).await;
@@ -211,10 +210,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Run actors
     let actor1 = Actor1;
-    system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), (actor1_stream)).await?;
+    system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), actor1_stream).await?;
 
     let actor2 = Actor2;
-    system.spawn_actor(actor2_ref.name(), actor2, *actor2_ref.state(), (actor2_stream)).await?;
+    system.spawn_actor(actor2_ref.name(), actor2, *actor2_ref.state(), actor2_stream).await?;
 
     // Case #1: send messages and call injected (not from &self) services inside handlers
     println!("-- Case #1: send messages and call injected (not from &self) services inside handlers");

@@ -1,17 +1,13 @@
-use std::time::Duration;
 use time::ext::NumericalStdDuration;
-use tokio::sync::mpsc::UnboundedSender;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use uactor::actor::abstract_actor::MessageSender;
 use uactor::system::System;
 
-use crate::actor1::Actor1Msg;
-use crate::actor1::Actor1Ref;
 use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::messages::PingMsg;
-use crate::supervisor::{Supervisor, SupervisorMpscRef, SupervisorMsg, SupervisorRef};
+use crate::supervisor::{Supervisor, SupervisorMpscRef};
 
 mod messages {
     use uactor::actor::message::{Message, Reply};
@@ -76,7 +72,7 @@ mod supervisor {
             _: &mut Self::Inject,
             ActorDied(name): ActorDied,
             _: &mut Context,
-            state: &Self::State,
+            _state: &Self::State,
         ) -> HandleResult {
             println!("Actor with name: {name:?} - died");
             Ok(())

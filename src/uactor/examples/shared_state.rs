@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 use time::ext::NumericalStdDuration;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -61,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
 
     let actor1 = Actor1;
-    let (_, handle) = system.spawn_actor(actor1_ref.name(), actor1, actor1_ref.state().clone(), (actor1_stream)).await?;
+    let (_, handle) = system.spawn_actor(actor1_ref.name(), actor1, actor1_ref.state().clone(), actor1_stream).await?;
 
     actor1_ref.send(PingMsg)?;
     actor1_ref.send(PingMsg)?;
