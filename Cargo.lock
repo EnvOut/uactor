@@ -562,13 +562,12 @@ dependencies = [
 
 [[package]]
 name = "uactor"
-version = "0.14.1"
+version = "0.15.0"
 dependencies = [
  "anyhow",
  "bytes",
  "derive_more",
  "futures",
- "lazy_static",
  "more-asserts",
  "paste",
  "thiserror",

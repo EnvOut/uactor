@@ -46,6 +46,7 @@ where
     F: Fn(&D::Item) -> bool + Send,
     D: DataSource + Send,
 {
+    #[allow(dead_code)]
     fn map(self, map_fn: F) -> DataSourceFilter<D, F>;
 }
 

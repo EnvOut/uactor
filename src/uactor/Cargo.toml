@@ -1,6 +1,6 @@
 [package]
 name = "uactor"
-version = "0.14.1"
+version = "0.15.0"
 edition = "2021"
 repository = "https://github.com/EnvOut/uactor"
 license = "MIT"
@@ -18,7 +18,6 @@ tracing = { workspace = true }
 paste = "1.0"
 derive_more = { workspace = true }
 bytes = { version = "1", optional = true }
-lazy_static = "1.5.0"
 
 [dev-dependencies]
 more-asserts = "0.3.1"

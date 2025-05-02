@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -10,11 +10,9 @@ use crate::dependency_injection::Inject;
 use crate::system::builder::SystemBuilder;
 use super::{ActorRunningError, System};
 
-lazy_static::lazy_static! {
-    static ref GLOBAL_SYSTEM: Arc<RwLock<System>> = {
-        Arc::new(RwLock::new(SystemBuilder::new_global().build()))
-    };
-}
+static GLOBAL_SYSTEM: LazyLock<Arc<RwLock<System>>> = LazyLock::new(|| {
+    Arc::new(RwLock::new(SystemBuilder::new_global().build()))
+});
 
 pub struct GlobalSystem {}
 
@@ -66,7 +64,7 @@ impl GlobalSystem {
 
     pub async fn with(&mut self, with: impl FnOnce(&mut System)) -> Self {
         let mut system = GLOBAL_SYSTEM.write().await;
-        with(&mut *system);
+        with(&mut system);
         GlobalSystem {}
     }
 }
