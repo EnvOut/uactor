@@ -1,18 +1,17 @@
-use std::sync::{Arc, LazyLock};
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
+use super::{ActorRunningError, System};
 use crate::actor::abstract_actor::{Actor, Handler};
 use crate::actor::message::Message;
 use crate::actor::select::ActorSelect;
 use crate::aliases::ActorName;
 use crate::dependency_injection::Inject;
 use crate::system::builder::SystemBuilder;
-use super::{ActorRunningError, System};
+use std::sync::{Arc, LazyLock};
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::RwLock;
+use tokio::task::JoinHandle;
 
-static GLOBAL_SYSTEM: LazyLock<Arc<RwLock<System>>> = LazyLock::new(|| {
-    Arc::new(RwLock::new(SystemBuilder::new_global().build()))
-});
+static GLOBAL_SYSTEM: LazyLock<Arc<RwLock<System>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(SystemBuilder::new_global().build())));
 
 pub struct GlobalSystem {}
 
@@ -43,7 +42,9 @@ impl GlobalSystem {
         R: From<(ActorName, UnboundedSender<M>, A::State)>,
     {
         let mut system = GLOBAL_SYSTEM.write().await;
-        system.register_ref_with_state::<A, M, R>(actor_name, state).await
+        system
+            .register_ref_with_state::<A, M, R>(actor_name, state)
+            .await
     }
 
     pub async fn spawn_actor<A, S>(
@@ -59,7 +60,9 @@ impl GlobalSystem {
         <A as Actor>::Inject: Inject + Sized + Send,
     {
         let mut system = GLOBAL_SYSTEM.write().await;
-        system.spawn_actor::<A, S>(actor_name, actor, state, aggregator).await
+        system
+            .spawn_actor::<A, S>(actor_name, actor, state, aggregator)
+            .await
     }
 
     pub async fn with(&mut self, with: impl FnOnce(&mut System)) -> Self {
@@ -67,4 +70,10 @@ impl GlobalSystem {
         with(&mut system);
         GlobalSystem {}
     }
+
+    pub async fn insert_service<T: Send + Sync + 'static>(&mut self, data: T) {
+        let mut system = GLOBAL_SYSTEM.write().await;
+        system.insert_service(data)
+    }
 }
+
