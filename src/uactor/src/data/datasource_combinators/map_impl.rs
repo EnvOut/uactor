@@ -55,3 +55,31 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::DataSourceMapExt;
+    use crate::data::datasource::DataSource;
+
+    #[tokio::test]
+    async fn test_map() {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        tx.send(1).unwrap();
+        tx.send(1).unwrap();
+        tx.send(1).unwrap();
+        tx.send(1).unwrap();
+        tx.send(1).unwrap();
+
+        drop(tx);
+
+        let mut stream = rx.map(|value| value * 10);
+
+        let mut sum = 0;
+        while let Ok(value) = stream.next().await {
+            assert_eq!(value, 10);
+            sum += value;
+        }
+
+        assert_eq!(sum, 50);
+    }
+}

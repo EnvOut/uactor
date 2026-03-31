@@ -1,38 +1,38 @@
 use crate::data::datasource::{DataSource, DataSourceResult};
 
-pub struct DataSourceFilter<D, F>
+pub struct DataSourceFilterMap<D, F, R>
 where
-    F: Fn(&D::Item) -> bool + Send,
+    F: Fn(D::Item) -> Option<R> + Send,
     D: DataSource + Send,
 {
     datasource: D,
     filter_fn: F,
 }
 
-impl<D, F> DataSourceFilterExt<D, F> for DataSourceFilter<D, F>
+impl<D, F, R> DataSourceFilterMapExt<D, F, R> for DataSourceFilterMap<D, F, R>
 where
-    F: Fn(&D::Item) -> bool + Send,
+    F: Fn(D::Item) -> Option<R> + Send,
     D: DataSource + Send,
 {
-    fn filter(self, map_fn: F) -> DataSourceFilter<D, F> {
-        DataSourceFilter {
+    fn filter_map(self, map_fn: F) -> DataSourceFilterMap<D, F, R> {
+        DataSourceFilterMap {
             datasource: self.datasource,
             filter_fn: map_fn,
         }
     }
 }
 
-impl<D, F> DataSource for DataSourceFilter<D, F>
+impl<D, F, R> DataSource for DataSourceFilterMap<D, F, R>
 where
-    F: Fn(&D::Item) -> bool + Send,
+    F: Fn(D::Item) -> Option<R> + Send,
     D: DataSource + Send,
 {
-    type Item = D::Item;
+    type Item = R;
 
     async fn next(&mut self) -> DataSourceResult<Self::Item> {
         loop {
             let value = DataSource::next(&mut self.datasource).await?;
-            if (self.filter_fn)(&value) {
+            if let Some(value) = (self.filter_fn)(value) {
                 return Ok(value);
             } else {
                 continue;
@@ -41,22 +41,22 @@ where
     }
 }
 
-pub trait DataSourceFilterExt<D, F>
+pub trait DataSourceFilterMapExt<D, F, R>
 where
-    F: Fn(&D::Item) -> bool + Send,
+    F: Fn(D::Item) -> Option<R> + Send,
     D: DataSource + Send,
 {
     #[allow(dead_code)]
-    fn filter(self, map_fn: F) -> DataSourceFilter<D, F>;
+    fn filter_map(self, map_fn: F) -> DataSourceFilterMap<D, F, R>;
 }
 
-impl<D, F> DataSourceFilterExt<D, F> for D
+impl<D, F, R> DataSourceFilterMapExt<D, F, R> for D
 where
-    F: Fn(&D::Item) -> bool + Send,
+    F: Fn(D::Item) -> Option<R> + Send,
     D: DataSource + Send,
 {
-    fn filter(self, map_fn: F) -> DataSourceFilter<D, F> {
-        DataSourceFilter {
+    fn filter_map(self, map_fn: F) -> DataSourceFilterMap<D, F, R> {
+        DataSourceFilterMap {
             datasource: self,
             filter_fn: map_fn,
         }
@@ -65,7 +65,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::DataSourceFilterExt;
+    use super::DataSourceFilterMapExt;
     use crate::data::datasource::DataSource;
 
     #[tokio::test]
@@ -79,7 +79,7 @@ mod tests {
 
         drop(tx);
 
-        let mut stream = rx.filter(|i| i > &0);
+        let mut stream = rx.filter_map(|i| if i > 0 { Some(i) } else { None });
 
         let mut sum = 0;
         while let Ok(value) = stream.next().await {
