@@ -37,7 +37,6 @@ impl GlobalSystem {
     ) -> (R, tokio::sync::mpsc::UnboundedReceiver<M>)
     where
         A: Actor,
-        A::State: Default,
         M: Message + Send + 'static,
         R: From<(ActorName, UnboundedSender<M>, A::State)>,
     {

@@ -30,6 +30,19 @@ pub trait ActorContext: Sized + Unpin + 'static {
         system: &mut System,
         name: Arc<str>,
     ) -> impl Future<Output = ContextInitializationError<Self>> + Send;
+
+    /// Stores a type-erased self-sender so the actor can send messages to itself.
+    fn set_self_sender(&mut self, _sender: Box<dyn std::any::Any + Send>) {}
+
+    /// Returns the type-erased self-sender, if one was set.
+    fn self_sender_raw(&self) -> Option<&(dyn std::any::Any + Send)> {
+        None
+    }
+
+    /// Returns a typed reference to the actor's own `UnboundedSender`, if set.
+    fn self_sender<M: Send + 'static>(&self) -> Option<&tokio::sync::mpsc::UnboundedSender<M>> {
+        self.self_sender_raw()?.downcast_ref()
+    }
 }
 
 pub struct ActorDied(pub Arc<str>);
@@ -40,10 +53,16 @@ impl Message for ActorDied {
     }
 }
 
-#[derive(derive_more::Constructor)]
 pub struct Context {
     alive: bool,
     name: Arc<str>,
+    self_sender: Option<Box<dyn std::any::Any + Send>>,
+}
+
+impl Context {
+    pub fn new(alive: bool, name: Arc<str>) -> Self {
+        Self { alive, name, self_sender: None }
+    }
 }
 
 impl ActorContext for Context {
@@ -60,7 +79,15 @@ impl ActorContext for Context {
     }
 
     async fn create<A: Actor>(_: &mut System, name: Arc<str>) -> ContextInitializationError<Self> {
-        Ok(Context { alive: true, name })
+        Ok(Context { alive: true, name, self_sender: None })
+    }
+
+    fn set_self_sender(&mut self, sender: Box<dyn std::any::Any + Send>) {
+        self.self_sender = Some(sender);
+    }
+
+    fn self_sender_raw(&self) -> Option<&(dyn std::any::Any + Send)> {
+        self.self_sender.as_deref()
     }
 }
 
@@ -372,7 +399,8 @@ pub mod actor_registry {
                         .map(|boxed| *boxed)
                 })
         }
-        // TODO: docs
+        /// Returns references to all registered `(DataPublisher, State)` pairs for actor type `A`.
+        /// Returns `None` if no actors of this type are registered.
         pub fn get_all<A, M, D>(&self) -> Option<Vec<&(D, A::State)>>
         where
             A: Actor,
@@ -386,7 +414,8 @@ pub mod actor_registry {
                 .collect::<Option<Vec<&(D, A::State)>>>()
         }
 
-        // TODO: docs
+        /// Returns a reference to the registered data for actor type `T` with the given name.
+        /// The result is downcast to `R` (typically `(DataPublisher, State)`).
         pub fn get_actor_ref<T, R>(&self, actor_name: Arc<str>) -> Option<&R>
         where
             T: Send + Sync + 'static,
@@ -397,7 +426,14 @@ pub mod actor_registry {
             (&**boxed_actor_ref as &(dyn Any + 'static)).downcast_ref()
         }
 
-        // TODO: docs
+        pub(crate) fn get_sender_any(&self, type_id: TypeId, actor_name: &Arc<str>) -> Option<&(dyn Any + Send + Sync)> {
+            let group = self.inner.get(&type_id)?;
+            let boxed = group.get(actor_name)?;
+            Some(&**boxed)
+        }
+
+        /// Removes a registered actor of type `T` with the given name.
+        /// Returns `Some(())` if the actor was found and removed, `None` otherwise.
         pub fn remove<T: Send + Sync + 'static>(&mut self, actor_name: Arc<str>) -> Option<()> {
             self.inner
                 .get_mut(&TypeId::of::<T>())?

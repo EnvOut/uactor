@@ -93,6 +93,21 @@ impl System {
             .await
             .map_err(ActorRunningError::ContextError)?;
 
+        // Store a clone of the actor's own sender in the context so handlers can send messages to self
+        if let Some(sender) = self
+            .actor_registry
+            .get_sender_any(std::any::TypeId::of::<A>(), &actor_name)
+            .and_then(|any| {
+                any.downcast_ref::<(
+                    UnboundedSender<A::RouteMessage>,
+                    A::State,
+                )>()
+            })
+            .map(|(sender, _)| sender.clone())
+        {
+            ctx.set_self_sender(Box::new(sender));
+        }
+
         let mut inject = A::Inject::inject(self).await?;
 
         let handle = {
@@ -159,11 +174,7 @@ impl System {
 
         Ok((state, handle))
     }
-}
 
-impl System {}
-
-impl System {
     pub fn global() -> GlobalSystem {
         GlobalSystem {}
     }
@@ -171,9 +182,7 @@ impl System {
     pub fn name(system_name: String) -> SystemBuilder {
         SystemBuilder::new(system_name, Extensions::new())
     }
-}
 
-impl System {
     pub fn get_service<T>(&self) -> Result<Service<T>, ExtensionErrors>
     where
         T: Clone + Send + Sync + 'static,

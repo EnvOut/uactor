@@ -10,7 +10,7 @@ use crate::messages::PingMsg;
 use crate::supervisor::{Supervisor, SupervisorMpscRef};
 
 mod messages {
-    use uactor::actor::message::{Message, Reply};
+    use uactor::actor::message::Reply;
 
     pub struct PingMsg(pub Reply<PongMsg>);
 

@@ -8,6 +8,7 @@ impl<T: std::any::Any + Send + 'static> State for T {}
 
 use crate::dependency_injection::Inject;
 
+/// Core trait for defining an actor. Specifies the context, route message, injection, and state types.
 #[allow(unused_variables)]
 pub trait Actor: Sized + Unpin + 'static {
     /// Actor execution context type
@@ -61,6 +62,20 @@ pub trait Actor: Sized + Unpin + 'static {
     }
 }
 
+/// Handles a specific message type for an actor.
+///
+/// Can be implemented manually or generated via `#[uactor::actor]` + `#[uactor::handler]`:
+///
+/// ```ignore
+/// #[uactor::actor]
+/// impl MyActor {
+///     #[uactor::handler]
+///     async fn handle_ping(&mut self, msg: PingMsg, ctx: &mut Context) -> HandleResult {
+///         // `ctx`, `state` are optional; other params are inject fields
+///         Ok(())
+///     }
+/// }
+/// ```
 pub trait Handler<M>
 where
     Self: Actor,

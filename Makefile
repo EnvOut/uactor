@@ -9,3 +9,6 @@ run_tests:
 
 publish: run_tests run_all_examples
 	cargo publish -p uactor --allow-dirty
+
+publish-derive: run_tests run_all_examples
+	cargo publish -p uactor-derive --allow-dirty

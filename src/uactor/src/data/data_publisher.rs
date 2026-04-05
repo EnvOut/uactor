@@ -31,16 +31,10 @@ mod async_sender {
         }
     }
 
-    #[derive(thiserror::Error, Debug)]
+    #[derive(thiserror::Error, Debug, Clone)]
     pub enum TryCloneError {
         #[error("Can't be cloned")]
         CantClone,
-    }
-
-    impl Clone for TryCloneError {
-        fn clone(&self) -> Self {
-            todo!()
-        }
     }
 
     impl<T> From<mpsc::error::SendError<T>> for DataPublisherErrors {
@@ -162,16 +156,10 @@ mod sync_sender {
         fn try_clone(&self) -> Result<Self, TryCloneError>;
     }
 
-    #[derive(thiserror::Error, Debug)]
+    #[derive(thiserror::Error, Debug, Clone)]
     pub enum TryCloneError {
         #[error("Can't be cloned")]
         CantClone,
-    }
-
-    impl Clone for TryCloneError {
-        fn clone(&self) -> Self {
-            todo!()
-        }
     }
 
     impl<T> From<mpsc::error::SendError<T>> for DataPublisherErrors {

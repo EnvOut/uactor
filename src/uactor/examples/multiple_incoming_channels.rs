@@ -11,7 +11,6 @@ use crate::actor2::Actor2;
 use crate::messages::{PingPongMsg, ReqMsg, RespMsg};
 
 pub mod messages {
-    use uactor::actor::message::Message;
     use uactor::message_impl;
 
     #[derive(Debug)]

@@ -7,6 +7,12 @@ use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::Instant;
 
+/// Marker trait for actor messages. Provides a static name for logging and tracing.
+///
+/// Can be implemented via:
+/// - `#[derive(uactor::Message)]` on a struct/enum
+/// - `uactor::message_impl!(MsgA, MsgB)` for multiple types at once
+/// - Manual implementation
 pub trait Message {
     fn static_name() -> &'static str;
 
@@ -29,7 +35,7 @@ where
     A: Message,
 {
     fn static_name() -> &'static str {
-        type_name::<Option<String>>()
+        type_name::<Option<A>>()
     }
 }
 impl<A> Message for Arc<A>
@@ -37,7 +43,7 @@ where
     A: Message,
 {
     fn static_name() -> &'static str {
-        type_name::<Arc<String>>()
+        type_name::<Arc<A>>()
     }
 }
 impl<A> Message for Mutex<A>
@@ -45,7 +51,7 @@ where
     A: Message,
 {
     fn static_name() -> &'static str {
-        type_name::<Mutex<String>>()
+        type_name::<Mutex<A>>()
     }
 }
 impl<A> Message for RwLock<A>
@@ -53,15 +59,22 @@ where
     A: Message,
 {
     fn static_name() -> &'static str {
-        type_name::<RwLock<String>>()
+        type_name::<RwLock<A>>()
     }
 }
 
+/// Implement [`Message`] for one or more types at once. Does not require importing the trait.
+///
+/// ```
+/// struct MyMsg;
+/// struct AnotherMsg;
+/// uactor::message_impl!(MyMsg, AnotherMsg);
+/// ```
 #[macro_export]
 macro_rules! message_impl {
     ($($T: ident),*) => {
         $(
-            impl Message for $T { fn static_name() -> &'static str {
+            impl $crate::actor::message::Message for $T { fn static_name() -> &'static str {
                 stringify!($T)
             }}
         )*
@@ -77,7 +90,24 @@ pub struct IntervalMessage {
 
 pub type Reply<T> = tokio::sync::oneshot::Sender<T>;
 
+impl<T> Message for Reply<T> {
+    fn static_name() -> &'static str {
+        type_name::<Reply<T>>()
+    }
+}
+
 message_impl! { IntervalMessage, Empty, i64, i32, i16, i8, u64, u32, u16, u8, f64, f32, String, NonZeroI64, NonZeroI32, NonZeroI16, NonZeroI8, NonZeroU64, NonZeroU32, NonZeroU16, NonZeroU8 }
 
 #[cfg(feature = "bytes")]
-impl Message for bytes::BytesMut {}
+impl Message for bytes::BytesMut {
+    fn static_name() -> &'static str {
+        "BytesMut"
+    }
+}
+
+#[cfg(feature = "uuid")]
+impl Message for uuid::Uuid {
+    fn static_name() -> &'static str {
+        "Uuid"
+    }
+}

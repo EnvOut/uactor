@@ -10,7 +10,7 @@ use more_asserts as ma;
 use uactor::actor::message::IntervalMessage;
 
 mod messages {
-    use uactor::actor::message::{Message, Reply};
+    use uactor::actor::message::Reply;
 
     pub struct AskTicksCountMsg(pub Reply<TicksCount>);
     pub struct UpdateMetrics;

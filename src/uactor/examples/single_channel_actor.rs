@@ -6,7 +6,7 @@ use crate::actor1::{Actor1, Actor1MpscRef};
 use crate::messages::PingMsg;
 
 mod messages {
-    use uactor::actor::message::{Message, Reply};
+    use uactor::actor::message::Reply;
 
     pub struct PingMsg(pub Reply<PongMsg>);
 

@@ -9,7 +9,7 @@ use crate::messages::{MessageWithoutReply, PingMsg, PongMsg};
 use crate::services::{Service1, Service2};
 
 mod messages {
-    use uactor::actor::message::{Message, Reply};
+    use uactor::actor::message::Reply;
 
     pub struct PingMsg(pub Reply<PongMsg>);
 
@@ -26,7 +26,7 @@ mod messages {
 }
 
 mod actor1 {
-    use uactor::actor::abstract_actor::{Actor, HandleResult, Handler, MessageSender};
+    use uactor::actor::abstract_actor::{Actor, MessageSender};
     use uactor::actor::context::extensions::Service;
     use uactor::actor::context::Context;
     use uactor::dependency_injection::{Inject, InjectError};
@@ -36,7 +36,9 @@ mod actor1 {
     use crate::messages::{MessageWithoutReply, PingMsg, PongMsg, PrintMessage};
     use crate::services::Service1;
 
-    pub struct Actor1;
+    pub struct Actor1 {
+        pub ping_count: u32,
+    }
 
     #[derive(derive_more::Constructor)]
     pub struct Services {
@@ -62,32 +64,21 @@ mod actor1 {
         type State = ();
     }
 
-    impl Handler<PingMsg> for Actor1 {
-        async fn handle(
-            &mut self,
-            Services { service1, .. }: &mut Self::Inject,
-            ping: PingMsg,
-            _ctx: &mut Context,
-            _state: &Self::State,
-        ) -> HandleResult {
-            println!("actor1: Received ping message");
+    #[uactor::actor]
+    impl Actor1 {
+        #[uactor::handler]
+        async fn handle_ping(&mut self, PingMsg(reply): PingMsg, service1: Service<Service1>) -> HandleResult {
+            self.ping_count += 1;
+            println!("actor1: Received ping message (count: {})", self.ping_count);
 
             service1.do_something();
 
-            let PingMsg(reply) = ping;
             let _ = reply.send(PongMsg);
             Ok(())
         }
-    }
 
-    impl Handler<MessageWithoutReply> for Actor1 {
-        async fn handle(
-            &mut self,
-            Services { actor2_ref, .. }: &mut Self::Inject,
-            msg: MessageWithoutReply,
-            _ctx: &mut Context,
-            _state: &Self::State,
-        ) -> HandleResult {
+        #[uactor::handler]
+        async fn handle_msg(msg: MessageWithoutReply, actor2_ref: Actor2MpscRef) -> HandleResult {
             println!("actor1: Received {msg:?} message, sending PrintMessage to the actor2");
             actor2_ref.send(PrintMessage::new(msg.into()))?;
             Ok(())
@@ -209,7 +200,7 @@ async fn main() -> anyhow::Result<()> {
     let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2MpscRef>("actor2").await;
 
     // Run actors
-    let actor1 = Actor1;
+    let actor1 = Actor1 { ping_count: 0 };
     system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), actor1_stream).await?;
 
     let actor2 = Actor2;

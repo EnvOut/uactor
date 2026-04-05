@@ -1,0 +1,16 @@
+[package]
+name = "uactor-derive"
+version = "0.17.1"
+edition = "2021"
+repository = "https://github.com/EnvOut/uactor"
+license = "MIT"
+workspace = "../../"
+description = "Derive macros for uactor"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"

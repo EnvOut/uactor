@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "src/uactor",
+    "src/uactor-derive",
 ]
 
 [workspace.dependencies]

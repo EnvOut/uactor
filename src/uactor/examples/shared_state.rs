@@ -8,7 +8,6 @@ use uactor::actor::abstract_actor::{Actor, HandleResult, Handler, MessageSender}
 use uactor::actor::context::Context;
 use uactor::system::System;
 
-use uactor::actor::message::Message;
 pub struct PingMsg;
 
 uactor::message_impl!(PingMsg);
