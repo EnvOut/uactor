@@ -73,12 +73,8 @@ pub mod actor1 {
             state: &Self::State,
         ) -> HandleResult {
             match msg {
-                Actor1Msg::PingPongMsg(ping) => {
-                    self.handle(inject, ping, ctx, state).await
-                }
-                Actor1Msg::ReqMsg(req) => {
-                    self.handle(inject, req, ctx, state).await
-                }
+                Actor1Msg::PingPongMsg(ping) => self.handle(inject, ping, ctx, state).await,
+                Actor1Msg::ReqMsg(req) => self.handle(inject, req, ctx, state).await,
             }
         }
     }
@@ -163,8 +159,12 @@ async fn main() -> anyhow::Result<()> {
     let actor1_ch1 = ping_rx.map(Actor1Msg::PingPongMsg);
     let actor1_ch2 = req_rx.map(Actor1Msg::ReqMsg);
     // Run actors
-    let (_, handle1) = system.spawn_actor("actor1".into(), actor1, (), (actor1_ch1, actor1_ch2)).await?;
-    let (_, handle2) = system.spawn_actor("actor2".into(), actor2, (), resp_rx).await?;
+    let (_, handle1) = system
+        .spawn_actor("actor1".into(), actor1, (), (actor1_ch1, actor1_ch2))
+        .await?;
+    let (_, handle2) = system
+        .spawn_actor("actor2".into(), actor2, (), resp_rx)
+        .await?;
 
     // Send messages
     ping_tx.send(PingPongMsg::Ping).await?;

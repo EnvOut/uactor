@@ -120,8 +120,9 @@ fn aliased_message_name() {
 async fn aliased_actor_ref_send_and_ask() {
     let mut system = System::global();
 
-    let (actor_ref, stream) =
-        system.register_ref::<AliasActor, _, AliasActorMpscRef>("alias_actor").await;
+    let (actor_ref, stream) = system
+        .register_ref::<AliasActor, _, AliasActorMpscRef>("alias_actor")
+        .await;
 
     let actor = AliasActor {
         last_next_id: None,

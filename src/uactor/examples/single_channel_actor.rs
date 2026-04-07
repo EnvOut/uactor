@@ -55,9 +55,13 @@ async fn main() -> anyhow::Result<()> {
 
     let mut system = System::global();
 
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, Actor1Msg, Actor1MpscRef>("actor1").await;
+    let (actor1_ref, actor1_stream) = system
+        .register_ref::<Actor1, Actor1Msg, Actor1MpscRef>("actor1")
+        .await;
 
-    system.spawn_actor(actor1_ref.name(), actor1, (), actor1_stream).await?;
+    system
+        .spawn_actor(actor1_ref.name(), actor1, (), actor1_stream)
+        .await?;
 
     let pong = actor1_ref.ask(PingMsg).await?;
     println!("main: received {pong:?} message");

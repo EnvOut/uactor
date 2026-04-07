@@ -584,7 +584,7 @@ dependencies = [
 
 [[package]]
 name = "uactor"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -598,13 +598,13 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
- "uactor-derive 0.17.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uactor-derive 0.17.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid",
 ]
 
 [[package]]
 name = "uactor-derive"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -613,9 +613,9 @@ dependencies = [
 
 [[package]]
 name = "uactor-derive"
-version = "0.17.1"
+version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "560658850ab51729812346c8329dd451bf20b86ea29d7e4eb149cbc329d16983"
+checksum = "85e326638a7eb52593e3ea2e864ea3d8cecf01943d27c7a8180309c6116d0146"
 dependencies = [
  "proc-macro2",
  "quote",

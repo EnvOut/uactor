@@ -56,10 +56,19 @@ async fn main() -> anyhow::Result<()> {
 
     let mut system = System::global();
 
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
+    let (actor1_ref, actor1_stream) = system
+        .register_ref::<Actor1, _, Actor1MpscRef>("actor1")
+        .await;
 
     let actor1 = Actor1;
-    let (_, handle) = system.spawn_actor(actor1_ref.name(), actor1, actor1_ref.state().clone(), actor1_stream).await?;
+    let (_, handle) = system
+        .spawn_actor(
+            actor1_ref.name(),
+            actor1,
+            actor1_ref.state().clone(),
+            actor1_stream,
+        )
+        .await?;
 
     actor1_ref.send(PingMsg)?;
     actor1_ref.send(PingMsg)?;

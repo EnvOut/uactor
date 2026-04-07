@@ -100,22 +100,37 @@ async fn main() -> anyhow::Result<()> {
     let metrics_update_interval = tokio::time::interval(100.std_milliseconds())
         .map(|_: IntervalMessage| Actor1Msg::UpdateMetrics(UpdateMetrics));
     // 1 second interval for other tasks
-    let other_interval = tokio::time::interval(1.std_seconds())
-        .map(Actor1Msg::IntervalMessage);
+    let other_interval = tokio::time::interval(1.std_seconds()).map(Actor1Msg::IntervalMessage);
 
     // Initialize actor's reference
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
+    let (actor1_ref, actor1_stream) = system
+        .register_ref::<Actor1, _, Actor1MpscRef>("actor1")
+        .await;
 
     // Spawn actor
     let actor1 = Actor1::default();
-    let (_state, actor_handle) = system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), (actor1_stream, metrics_update_interval, other_interval)).await?;
+    let (_state, actor_handle) = system
+        .spawn_actor(
+            actor1_ref.name(),
+            actor1,
+            *actor1_ref.state(),
+            (actor1_stream, metrics_update_interval, other_interval),
+        )
+        .await?;
 
     // Wait for 5 ticks
     tokio::time::sleep(500.std_milliseconds()).await;
     let TicksCount(ticks_count) = actor1_ref.ask::<TicksCount>(AskTicksCountMsg).await?;
-    ma::assert_ge!(ticks_count, 5, "waiting 5 ticks and expecting at least 5 messages received");
+    ma::assert_ge!(
+        ticks_count,
+        5,
+        "waiting 5 ticks and expecting at least 5 messages received"
+    );
 
     tokio::time::sleep(1.std_microseconds()).await;
-    assert!(actor_handle.is_finished(), "actor should be finished after receiving AskTicksCountMsg");
+    assert!(
+        actor_handle.is_finished(),
+        "actor should be finished after receiving AskTicksCountMsg"
+    );
     Ok(())
 }

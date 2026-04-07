@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
-use syn::{parse_macro_input, DeriveInput, FnArg, ImplItem, ImplItemFn, ItemImpl, Pat, Type};
+use quote::quote;
+use syn::{parse_macro_input, DeriveInput, FnArg, ImplItem, ImplItemFn, ItemImpl, Pat};
 
 /// Derive macro for the `Message` trait. Implements `static_name()` returning the type name.
 ///
@@ -78,7 +78,6 @@ pub fn handler(_attr: TokenStream, _item: TokenStream) -> TokenStream {
 /// - First non-self parameter -- the message; its type determines `Handler<Type>`
 /// - `ctx` -- maps to `ctx: &mut Self::Context`
 /// - `state` -- maps to `state: &Self::State`
-/// - `self_ref` -- a generated `{Actor}MpscRef` that lets the actor send messages to itself
 /// - Any other parameter -- accessed as `inject.field_name` from the `Inject` struct
 ///
 /// ## Example
@@ -90,12 +89,6 @@ pub fn handler(_attr: TokenStream, _item: TokenStream) -> TokenStream {
 ///     async fn handle_ping(&mut self, PingMsg(reply): PingMsg, service: Service<MyService>) -> HandleResult {
 ///         service.do_work();
 ///         let _ = reply.send(PongMsg);
-///         Ok(())
-///     }
-///
-///     #[uactor::handler]
-///     async fn handle_first(&mut self, msg: FirstMsg, self_ref: MyActorMpscRef) -> HandleResult {
-///         self_ref.send(SecondMsg)?;
 ///         Ok(())
 ///     }
 /// }
@@ -140,21 +133,10 @@ fn has_handler_attr(method: &ImplItemFn) -> bool {
     method.attrs.iter().any(is_handler_path)
 }
 
-fn extract_type_ident(ty: &Type) -> &syn::Ident {
-    match ty {
-        Type::Path(type_path) => {
-            &type_path
-                .path
-                .segments
-                .last()
-                .expect("actor type path must have at least one segment")
-                .ident
-        }
-        _ => panic!("Expected a path type for actor"),
-    }
-}
-
-fn generate_handler_impl(actor_type: &Type, mut method: ImplItemFn) -> proc_macro2::TokenStream {
+fn generate_handler_impl(
+    actor_type: &syn::Type,
+    mut method: ImplItemFn,
+) -> proc_macro2::TokenStream {
     method.attrs.retain(|attr| !is_handler_path(attr));
 
     let remaining_attrs = &method.attrs;
@@ -179,10 +161,8 @@ fn generate_handler_impl(actor_type: &Type, mut method: ImplItemFn) -> proc_macr
     let mut inject_bindings = Vec::new();
     let mut has_ctx = false;
     let mut has_state = false;
-    let mut has_self_ref = false;
     let mut ctx_ident = None;
     let mut state_ident = None;
-    let mut self_ref_ident = None;
 
     for param in &params[1..] {
         if let FnArg::Typed(pat_type) = param {
@@ -194,9 +174,6 @@ fn generate_handler_impl(actor_type: &Type, mut method: ImplItemFn) -> proc_macr
                 } else if name == "state" {
                     has_state = true;
                     state_ident = Some(name.clone());
-                } else if name == "self_ref" {
-                    has_self_ref = true;
-                    self_ref_ident = Some(name.clone());
                 } else {
                     inject_bindings.push(name.clone());
                 }
@@ -206,42 +183,18 @@ fn generate_handler_impl(actor_type: &Type, mut method: ImplItemFn) -> proc_macr
         }
     }
 
-    // When self_ref is requested, ctx and state must be accessible (even if the user didn't name them)
-    let ctx_var = if has_ctx {
-        ctx_ident.clone().unwrap()
-    } else {
-        format_ident!("_ctx")
-    };
-    let state_var = if has_state {
-        state_ident.clone().unwrap()
-    } else {
-        format_ident!("_state")
-    };
-
-    let ctx_param = if has_ctx || has_self_ref {
-        let name = if has_ctx { ctx_ident.unwrap() } else { format_ident!("ctx") };
+    let ctx_param = if has_ctx {
+        let name = ctx_ident.unwrap();
         quote! { #name: &mut Self::Context }
     } else {
         quote! { _ctx: &mut Self::Context }
     };
 
-    let state_param = if has_state || has_self_ref {
-        let name = if has_state { state_ident.unwrap() } else { format_ident!("state") };
+    let state_param = if has_state {
+        let name = state_ident.unwrap();
         quote! { #name: &Self::State }
     } else {
         quote! { _state: &Self::State }
-    };
-
-    // Update ctx_var/state_var to match the actual parameter names used above
-    let ctx_var = if has_ctx || has_self_ref {
-        if has_ctx { ctx_var } else { format_ident!("ctx") }
-    } else {
-        ctx_var
-    };
-    let state_var = if has_state || has_self_ref {
-        if has_state { state_var } else { format_ident!("state") }
-    } else {
-        state_var
     };
 
     let inject_lets: Vec<proc_macro2::TokenStream> = inject_bindings
@@ -250,29 +203,6 @@ fn generate_handler_impl(actor_type: &Type, mut method: ImplItemFn) -> proc_macr
             quote! { let #name = &mut inject.#name; }
         })
         .collect();
-
-    let self_ref_let = if has_self_ref {
-        let actor_ident = extract_type_ident(actor_type);
-        let ref_type = format_ident!("{}MpscRef", actor_ident);
-        let msg_type_ident = format_ident!("{}Msg", actor_ident);
-        let name = self_ref_ident.unwrap();
-
-        quote! {
-            let #name: #ref_type = {
-                use uactor::actor::context::ActorContext as _;
-                let __sender = #ctx_var.self_sender::<#msg_type_ident>()
-                    .expect("self_sender not available in context; ensure actor was registered before spawning")
-                    .clone();
-                #ref_type::new(
-                    #ctx_var.get_name().into(),
-                    __sender,
-                    #state_var.clone(),
-                )
-            };
-        }
-    } else {
-        quote! {}
-    };
 
     quote! {
         impl uactor::actor::abstract_actor::Handler<#msg_type> for #actor_type {
@@ -285,7 +215,6 @@ fn generate_handler_impl(actor_type: &Type, mut method: ImplItemFn) -> proc_macr
                 #state_param,
             ) -> uactor::actor::abstract_actor::HandleResult {
                 #(#inject_lets)*
-                #self_ref_let
                 #(#stmts)*
             }
         }

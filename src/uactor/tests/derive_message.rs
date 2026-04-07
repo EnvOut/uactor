@@ -50,7 +50,11 @@ fn derive_message_enum_static_name() {
 fn derive_message_enum_variant_name() {
     assert_eq!(EventMessage::Created(1).name(), "EventMessage::Created");
     assert_eq!(
-        EventMessage::Updated { id: 1, value: "x".into() }.name(),
+        EventMessage::Updated {
+            id: 1,
+            value: "x".into()
+        }
+        .name(),
         "EventMessage::Updated"
     );
     assert_eq!(EventMessage::Shutdown.name(), "EventMessage::Shutdown");

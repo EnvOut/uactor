@@ -75,4 +75,3 @@ impl GlobalSystem {
         system.insert_service(data)
     }
 }
-

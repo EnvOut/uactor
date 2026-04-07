@@ -8,10 +8,10 @@ use crate::aliases::ActorName;
 use crate::data::data_publisher::{DataPublisher, TryCloneError};
 use crate::dependency_injection::{Inject, InjectError};
 use crate::system::builder::SystemBuilder;
+use crate::system::global::GlobalSystem;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
-use crate::system::global::GlobalSystem;
 
 pub mod global;
 
@@ -53,9 +53,17 @@ impl System {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<M>();
 
         let actor_name: Arc<str> = actor_name.to_owned().into();
-        let old_ref = self.actor_registry.register_ref::<A, M, UnboundedSender<M>>(actor_name.clone(), tx.clone(), state.clone());
+        let old_ref = self
+            .actor_registry
+            .register_ref::<A, M, UnboundedSender<M>>(
+                actor_name.clone(),
+                tx.clone(),
+                state.clone(),
+            );
         if let Some(_old_ref) = old_ref {
-            tracing::warn!("The actor: {actor_name:?} has already been registered, old ref has been replaced");
+            tracing::warn!(
+                "The actor: {actor_name:?} has already been registered, old ref has been replaced"
+            );
         }
 
         (R::from((actor_name, tx, state)), rx)
@@ -72,7 +80,8 @@ impl System {
         R: From<(ActorName, UnboundedSender<M>, A::State)>,
     {
         let state = A::State::default();
-        self.register_ref_with_state::<A, M, R>(actor_name, state).await
+        self.register_ref_with_state::<A, M, R>(actor_name, state)
+            .await
     }
 
     pub async fn spawn_actor<A, S>(
@@ -93,27 +102,16 @@ impl System {
             .await
             .map_err(ActorRunningError::ContextError)?;
 
-        // Store a clone of the actor's own sender in the context so handlers can send messages to self
-        if let Some(sender) = self
-            .actor_registry
-            .get_sender_any(std::any::TypeId::of::<A>(), &actor_name)
-            .and_then(|any| {
-                any.downcast_ref::<(
-                    UnboundedSender<A::RouteMessage>,
-                    A::State,
-                )>()
-            })
-            .map(|(sender, _)| sender.clone())
-        {
-            ctx.set_self_sender(Box::new(sender));
-        }
-
         let mut inject = A::Inject::inject(self).await?;
 
         let handle = {
             let state = state.clone();
             tokio::spawn(async move {
-                tracing::debug!("The system: {:?} spawned actor: {:?}", system_name, actor_name);
+                tracing::debug!(
+                    "The system: {:?} spawned actor: {:?}",
+                    system_name,
+                    actor_name
+                );
 
                 // call on_start
                 match ctx.on_start() {
@@ -162,7 +160,9 @@ impl System {
                         tracing::trace!("Context of the actor: {actor_name:?} destroyed");
                     }
                     Err(err) => {
-                        tracing::error!("Error during context die of the actor. {actor_name:?}: {err:?}");
+                        tracing::error!(
+                            "Error during context die of the actor. {actor_name:?}: {err:?}"
+                        );
                     }
                 }
 
@@ -275,7 +275,7 @@ pub mod builder {
     }
 
     impl SystemBuilder {
-        pub (crate) fn new_global() -> Self {
+        pub(crate) fn new_global() -> Self {
             Self {
                 name: GLOBAL_SYSTEM_NAME.to_owned(),
                 extensions: Extensions::new(),

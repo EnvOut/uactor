@@ -1,7 +1,7 @@
 use crate::actor::context::ActorContext;
 use crate::actor::message::Message;
-use std::future::Future;
 use crate::actor::select::{ActorSelect, SelectError, SelectResult};
+use std::future::Future;
 
 pub trait State: std::any::Any + Send + 'static {}
 impl<T: std::any::Any + Send + 'static> State for T {}
@@ -31,16 +31,21 @@ pub trait Actor: Sized + Unpin + 'static {
     fn select_message<S>(
         &mut self,
         ctx: &mut Self::Context,
-        aggregator: &mut S
+        aggregator: &mut S,
     ) -> impl Future<Output = SelectResult<Self>> + Send
     where
-        S: ActorSelect<Self> + Send + 'static, Self: Send
+        S: ActorSelect<Self> + Send + 'static,
+        Self: Send,
     {
         aggregator.select()
     }
 
     #[inline]
-    fn on_select_error(&mut self, err: SelectError, ctx: &mut Self::Context) -> impl Future<Output=()> + Send {
+    fn on_select_error(
+        &mut self,
+        err: SelectError,
+        ctx: &mut Self::Context,
+    ) -> impl Future<Output = ()> + Send {
         tracing::error!("Received error on datasource select: {:?}", err);
         ctx.kill();
         async {}
@@ -57,7 +62,11 @@ pub trait Actor: Sized + Unpin + 'static {
     }
 
     #[inline]
-    fn on_die(self, ctx: &mut Self::Context, state: &Self::State) -> impl Future<Output = ()> + Send {
+    fn on_die(
+        self,
+        ctx: &mut Self::Context,
+        state: &Self::State,
+    ) -> impl Future<Output = ()> + Send {
         async {}
     }
 }
@@ -112,9 +121,13 @@ pub trait MessageSender<M>
 where
     M: Message,
 {
-    fn send(&self, msg: M) -> impl std::future::Future<Output = crate::data::data_publisher::DataPublisherResult> + Send;
+    fn send(
+        &self,
+        msg: M,
+    ) -> impl std::future::Future<Output = crate::data::data_publisher::DataPublisherResult> + Send;
     fn ask<A>(
         &self,
         f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> M,
-    ) -> impl std::future::Future<Output = Result<A, crate::data::data_publisher::DataPublisherErrors>> + Send;
+    ) -> impl std::future::Future<Output = Result<A, crate::data::data_publisher::DataPublisherErrors>>
+           + Send;
 }

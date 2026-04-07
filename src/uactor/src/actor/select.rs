@@ -53,8 +53,8 @@ mod select_from_tuple {
     impl<A, C1, M> ActorSelect<A> for C1
     where
         M: Message + Send,
-        A: Actor<RouteMessage=M> + Send,
-        C1: DataSource<Item=M> + Send,
+        A: Actor<RouteMessage = M> + Send,
+        C1: DataSource<Item = M> + Send,
         <A as Actor>::Inject: Send,
     {
         #[cfg(feature = "tokio_tracing")]

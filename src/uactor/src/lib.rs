@@ -14,7 +14,9 @@ pub mod data;
 /// use uactor::prelude::*;
 /// ```
 pub mod prelude {
-    pub use crate::actor::abstract_actor::{Actor, HandleError, HandleResult, Handler, MessageSender};
+    pub use crate::actor::abstract_actor::{
+        Actor, HandleError, HandleResult, Handler, MessageSender,
+    };
     pub use crate::actor::context::{ActorContext, Context};
     pub use crate::actor::message::{Message, Reply};
     pub use crate::system::System;

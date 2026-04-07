@@ -91,16 +91,24 @@ async fn main() -> anyhow::Result<()> {
 
     let mut system = System::global();
 
-    let (supervisor_ref, supervisor_stream) = system.register_ref::<Supervisor, _, SupervisorMpscRef>("supervisor").await;
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
+    let (supervisor_ref, supervisor_stream) = system
+        .register_ref::<Supervisor, _, SupervisorMpscRef>("supervisor")
+        .await;
+    let (actor1_ref, actor1_stream) = system
+        .register_ref::<Actor1, _, Actor1MpscRef>("actor1")
+        .await;
 
     // Run supervisor
     let supervisor = Supervisor;
-    system.spawn_actor(supervisor_ref.name(), supervisor, (), supervisor_stream).await?;
+    system
+        .spawn_actor(supervisor_ref.name(), supervisor, (), supervisor_stream)
+        .await?;
 
     // Run actor1
     let actor1 = Actor1;
-    system.spawn_actor(actor1_ref.name(), actor1, (), actor1_stream).await?;
+    system
+        .spawn_actor(actor1_ref.name(), actor1, (), actor1_stream)
+        .await?;
 
     // ask actor1 to send a pong message
     let pong = actor1_ref.ask(PingMsg).await?;

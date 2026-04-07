@@ -67,7 +67,11 @@ mod actor1 {
     #[uactor::actor]
     impl Actor1 {
         #[uactor::handler]
-        async fn handle_ping(&mut self, PingMsg(reply): PingMsg, service1: Service<Service1>) -> HandleResult {
+        async fn handle_ping(
+            &mut self,
+            PingMsg(reply): PingMsg,
+            service1: Service<Service1>,
+        ) -> HandleResult {
             self.ping_count += 1;
             println!("actor1: Received ping message (count: {})", self.ping_count);
 
@@ -189,25 +193,47 @@ async fn main() -> anyhow::Result<()> {
     // Init system and register services
     let mut system = System::global()
         .with(|system| {
-            system.extension(service1.clone())
+            system
+                .extension(service1.clone())
                 .extension(service2.clone());
-        }).await;
+        })
+        .await;
 
     // Init actor (instance + spawn actor)
-    let (actor1_ref, actor1_stream) = system.register_ref::<Actor1, _, Actor1MpscRef>("actor1").await;
+    let (actor1_ref, actor1_stream) = system
+        .register_ref::<Actor1, _, Actor1MpscRef>("actor1")
+        .await;
 
     // Init actor2 (instance + spawn actor)
-    let (actor2_ref, actor2_stream) = system.register_ref::<Actor2, _, Actor2MpscRef>("actor2").await;
+    let (actor2_ref, actor2_stream) = system
+        .register_ref::<Actor2, _, Actor2MpscRef>("actor2")
+        .await;
 
     // Run actors
     let actor1 = Actor1 { ping_count: 0 };
-    system.spawn_actor(actor1_ref.name(), actor1, *actor1_ref.state(), actor1_stream).await?;
+    system
+        .spawn_actor(
+            actor1_ref.name(),
+            actor1,
+            *actor1_ref.state(),
+            actor1_stream,
+        )
+        .await?;
 
     let actor2 = Actor2;
-    system.spawn_actor(actor2_ref.name(), actor2, *actor2_ref.state(), actor2_stream).await?;
+    system
+        .spawn_actor(
+            actor2_ref.name(),
+            actor2,
+            *actor2_ref.state(),
+            actor2_stream,
+        )
+        .await?;
 
     // Case #1: send messages and call injected (not from &self) services inside handlers
-    println!("-- Case #1: send messages and call injected (not from &self) services inside handlers");
+    println!(
+        "-- Case #1: send messages and call injected (not from &self) services inside handlers"
+    );
     let pong1 = actor1_ref.ask::<PongMsg>(PingMsg).await?;
     let pong2 = actor2_ref.ask::<PongMsg>(PingMsg).await?;
     println!("main: received {pong1:?} and {pong2:?} messages\n");

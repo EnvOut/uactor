@@ -68,11 +68,7 @@ mod counter {
 
         /// Responds with the current count, then stops the actor.
         #[uactor::handler]
-        async fn handle_get(
-            &self,
-            GetCount(reply): GetCount,
-            ctx: &mut Context,
-        ) -> HandleResult {
+        async fn handle_get(&self, GetCount(reply): GetCount, ctx: &mut Context) -> HandleResult {
             println!("[counter] reporting count = {}", self.count);
             let _ = reply.send(CountResponse(self.count));
             ctx.kill();

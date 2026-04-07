@@ -55,8 +55,9 @@ uactor::generate_actor_ref!(CounterActor, { Increment, GetCount, SetValue });
 async fn handler_macro_with_mut_self() {
     let mut system = System::global();
 
-    let (actor_ref, stream) =
-        system.register_ref::<CounterActor, _, CounterActorMpscRef>("counter").await;
+    let (actor_ref, stream) = system
+        .register_ref::<CounterActor, _, CounterActorMpscRef>("counter")
+        .await;
 
     let actor = CounterActor { count: 0 };
     system
@@ -76,8 +77,9 @@ async fn handler_macro_with_mut_self() {
 async fn handler_macro_set_and_get() {
     let mut system = System::global();
 
-    let (actor_ref, stream) =
-        system.register_ref::<CounterActor, _, CounterActorMpscRef>("counter_set").await;
+    let (actor_ref, stream) = system
+        .register_ref::<CounterActor, _, CounterActorMpscRef>("counter_set")
+        .await;
 
     let actor = CounterActor { count: 0 };
     system
@@ -121,8 +123,9 @@ uactor::generate_actor_ref!(StoppableActor, { StopMsg });
 async fn handler_macro_with_ctx_and_state() {
     let mut system = System::global();
 
-    let (actor_ref, stream) =
-        system.register_ref::<StoppableActor, _, StoppableActorMpscRef>("stoppable").await;
+    let (actor_ref, stream) = system
+        .register_ref::<StoppableActor, _, StoppableActorMpscRef>("stoppable")
+        .await;
 
     let state = Arc::new(AtomicU32::new(0));
     let actor = StoppableActor;
