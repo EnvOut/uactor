@@ -1,3 +1,5 @@
+mod service;
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, FnArg, ImplItem, ImplItemFn, ItemImpl, Pat};
@@ -67,6 +69,51 @@ pub fn handler(_attr: TokenStream, _item: TokenStream) -> TokenStream {
     TokenStream::from(quote! {
         compile_error!("`#[handler]` must be used inside an `#[uactor::actor]` impl block");
     })
+}
+
+/// Attribute macro that turns actor methods into a typed request API.
+///
+/// Each method becomes a generated message, a `Handler` impl, and a method on
+/// the actor ref:
+/// - `Result<(), E>` / `()` / `HandleResult` → fire-and-forget `send_<method>(...)`
+/// - any other return type (including `Result<T, E>`) → `ask_<method>(...).await`
+///   which yields the method's return value, **including `Err`**, without stopping
+///   the actor.
+///
+/// `ctx` / `context` and `state` parameters map to the actor context and state.
+/// Inject fields are taken from `Inject` when marked with `#[inject]`.
+/// Keep helpers out of the generated API with `#[skip]`.
+///
+/// ```ignore
+/// pub struct MyActor;
+///
+/// impl Actor for MyActor {
+///     type Context = Context;
+///     type RouteMessage = MyActorMsg;
+///     type Inject = ();
+///     type State = ();
+/// }
+///
+/// #[uactor::service]
+/// impl MyActor {
+///     async fn do_something(&mut self, site_id: i32, user_id: i32) -> Result<(), AppError> {
+///         Ok(())
+///     }
+///
+///     async fn sum(&mut self, a: i32, b: i32) -> Result<i32, AppError> {
+///         Ok(a + b)
+///     }
+/// }
+///
+/// // my_actor_ref.send_do_something(site_id, user_id)?;
+/// // let sum = my_actor_ref.ask_sum(1, 2).await?;
+/// ```
+///
+/// Do not call `generate_actor_ref!` yourself for the same actor: this macro
+/// emits it. Set `Actor::RouteMessage` to `{Actor}Msg`.
+#[proc_macro_attribute]
+pub fn service(attr: TokenStream, item: TokenStream) -> TokenStream {
+    service::service(attr, item)
 }
 
 /// Attribute macro for an actor impl block. Methods marked with `#[uactor::handler]`

@@ -2,7 +2,7 @@ pub mod dependency_injection;
 pub mod system;
 
 pub use paste::paste;
-pub use uactor_derive::{actor, handler, Message};
+pub use uactor_derive::{actor, handler, service, Message};
 
 pub mod actor;
 pub mod aliases;
@@ -20,5 +20,5 @@ pub mod prelude {
     pub use crate::actor::context::{ActorContext, Context};
     pub use crate::actor::message::{Message, Reply};
     pub use crate::system::System;
-    pub use crate::{actor, handler, Message};
+    pub use crate::{actor, handler, service, Message};
 }

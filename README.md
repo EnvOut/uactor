@@ -65,6 +65,8 @@ Examples can be found [here](src/uactor/examples).
    [Example: Multi channel](src/uactor/examples/multiple_incoming_channels.rs)
 10. Shared state for actors
     [Example: Shared state](src/uactor/examples/shared_state.rs)
+11. Service-style actor methods with `#[uactor::service]`
+    [Example: Service actor](src/uactor/examples/service_actor.rs)
 
 ### Derive and macro support
 
@@ -88,6 +90,12 @@ Examples can be found [here](src/uactor/examples).
   ```
 
   [Example: Macro handlers](src/uactor/examples/macro_handlers.rs)
+
+- **`#[uactor::service]`** -- describe actor handlers as service methods. The macro
+  generates message types, `Handler` impls, the actor ref, and typed
+  `send_<method>(...)` / `ask_<method>(...).await` calls.
+
+  [Example: Service actor](src/uactor/examples/service_actor.rs)
 
 ### Actor lifecycle
 

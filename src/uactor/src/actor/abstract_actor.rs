@@ -73,7 +73,8 @@ pub trait Actor: Sized + Unpin + 'static {
 
 /// Handles a specific message type for an actor.
 ///
-/// Can be implemented manually or generated via `#[uactor::actor]` + `#[uactor::handler]`:
+/// Can be implemented manually, generated via `#[uactor::actor]` + `#[uactor::handler]`,
+/// or generated from service-style methods via `#[uactor::service]`:
 ///
 /// ```ignore
 /// #[uactor::actor]
