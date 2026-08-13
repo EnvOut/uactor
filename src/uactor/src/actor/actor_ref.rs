@@ -30,42 +30,61 @@
 /// //   pub struct TaskFailed(pub TaskId);
 /// //   enum MyActorMsg { PingMsg(PingMsg), TaskDone(TaskDone), TaskFailed(TaskFailed) }
 /// ```
+///
+/// Unit aliases (parameterless messages) are also supported:
+/// ```ignore
+/// uactor::generate_actor_ref!(MyActor, { StartJob: () });
+/// // Generates:
+/// //   pub struct StartJob;
+/// //   enum MyActorMsg { StartJob }
+/// // Usage: MyActorMsg::StartJob (no wrapping needed)
+/// ```
 #[macro_export]
 macro_rules! generate_actor_ref {
     ($ActorType:ident, { $($rest:tt)* }) => {
-        $crate::generate_actor_ref!(@munch $ActorType [] [] $($rest)*);
+        $crate::generate_actor_ref!(@munch $ActorType [] [] [] $($rest)*);
     };
 
-    // --- TT muncher: two accumulators [plain...] [aliased...] ---
+    // --- TT muncher: three accumulators [plain...] [aliased...] [unit...] ---
+
+    // Unit alias with trailing comma
+    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] [$($unit:tt)*] $Alias:ident : ( ), $($rest:tt)*) => {
+        $crate::generate_actor_ref!(@munch $ActorType [$($plain)*] [$($aliased)*] [$($unit)* ($Alias)] $($rest)*);
+    };
+
+    // Unit alias without trailing comma (last)
+    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] [$($unit:tt)*] $Alias:ident : ( )) => {
+        $crate::generate_actor_ref!(@munch $ActorType [$($plain)*] [$($aliased)*] [$($unit)* ($Alias)]);
+    };
 
     // Aliased with trailing comma
-    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] $Alias:ident : $Type:ty, $($rest:tt)*) => {
-        $crate::generate_actor_ref!(@munch $ActorType [$($plain)*] [$($aliased)* ($Alias, $Type)] $($rest)*);
+    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] [$($unit:tt)*] $Alias:ident : $Type:ty, $($rest:tt)*) => {
+        $crate::generate_actor_ref!(@munch $ActorType [$($plain)*] [$($aliased)* ($Alias, $Type)] [$($unit)*] $($rest)*);
     };
 
     // Aliased without trailing comma (last)
-    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] $Alias:ident : $Type:ty) => {
-        $crate::generate_actor_ref!(@munch $ActorType [$($plain)*] [$($aliased)* ($Alias, $Type)]);
+    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] [$($unit:tt)*] $Alias:ident : $Type:ty) => {
+        $crate::generate_actor_ref!(@munch $ActorType [$($plain)*] [$($aliased)* ($Alias, $Type)] [$($unit)*]);
     };
 
     // Unaliased with trailing comma
-    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] $Message:ident, $($rest:tt)*) => {
-        $crate::generate_actor_ref!(@munch $ActorType [$($plain)* ($Message)] [$($aliased)*] $($rest)*);
+    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] [$($unit:tt)*] $Message:ident, $($rest:tt)*) => {
+        $crate::generate_actor_ref!(@munch $ActorType [$($plain)* ($Message)] [$($aliased)*] [$($unit)*] $($rest)*);
     };
 
     // Unaliased without trailing comma (last)
-    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] $Message:ident) => {
-        $crate::generate_actor_ref!(@munch $ActorType [$($plain)* ($Message)] [$($aliased)*]);
+    (@munch $ActorType:ident [$($plain:tt)*] [$($aliased:tt)*] [$($unit:tt)*] $Message:ident) => {
+        $crate::generate_actor_ref!(@munch $ActorType [$($plain)* ($Message)] [$($aliased)*] [$($unit)*]);
     };
 
     // Base case: all entries collected
-    (@munch $ActorType:ident [$(($Plain:ident))*] [$(($Alias:ident, $AType:ty))*]) => {
-        $crate::generate_actor_ref!(@emit $ActorType [$(($Plain))*] [$(($Alias, $AType))*]);
+    (@munch $ActorType:ident [$(($Plain:ident))*] [$(($Alias:ident, $AType:ty))*] [$(($Unit:ident))*]) => {
+        $crate::generate_actor_ref!(@emit $ActorType [$(($Plain))*] [$(($Alias, $AType))*] [$(($Unit))*]);
     };
 
     // --- Emit ---
 
-    (@emit $ActorType:ident [$(($Plain:ident))*] [$(($Alias:ident, $AType:ty))*]) => {
+    (@emit $ActorType:ident [$(($Plain:ident))*] [$(($Alias:ident, $AType:ty))*] [$(($Unit:ident))*]) => {
         $crate::paste! {
             $(
                 pub struct $Alias(pub $AType);
@@ -77,11 +96,22 @@ macro_rules! generate_actor_ref {
                 }
             )*
 
+            $(
+                pub struct $Unit;
+
+                impl $crate::actor::message::Message for $Unit {
+                    fn static_name() -> &'static str {
+                        stringify!($Unit)
+                    }
+                }
+            )*
+
             #[allow(private_interfaces)]
             #[warn(clippy::large_enum_variant)]
             pub enum [<$ActorType Msg>] {
                 $($Plain($Plain),)*
                 $($Alias($Alias),)*
+                $($Unit,)*
             }
 
             impl $crate::actor::message::Message for [<$ActorType Msg>] {
@@ -97,6 +127,9 @@ macro_rules! generate_actor_ref {
                     )*
                     $(
                         Self::$Alias(m) => m.name(),
+                    )*
+                    $(
+                        Self::$Unit => stringify!($Unit).to_owned(),
                     )*
                         _ => Self::static_name().to_owned(),
                     }
@@ -120,6 +153,11 @@ macro_rules! generate_actor_ref {
                         $(
                         [<$ActorType Msg>]::$Alias(m) => {
                             self.handle(inject, m, ctx, state).await?;
+                        }
+                        )*
+                        $(
+                        [<$ActorType Msg>]::$Unit => {
+                            self.handle(inject, $Unit, ctx, state).await?;
                         }
                         )*
                     }
@@ -197,6 +235,21 @@ macro_rules! generate_actor_ref {
                         let (tx, rx) = tokio::sync::oneshot::channel::<A>();
                         let message = f(tx);
                         self.sender.publish([<$ActorType Msg>]::$Alias(message))?;
+                        rx.await.map_err($crate::data::data_publisher::DataPublisherErrors::from)
+                    }
+                }
+            )*
+
+            $(
+                impl <T>$crate::actor::abstract_actor::MessageSender<$Unit> for [<$ActorType Ref>]<T> where T: $crate::data::data_publisher::DataPublisher<Item=[<$ActorType Msg>]> + Clone {
+                    fn send(&self, _msg: $Unit) -> $crate::data::data_publisher::DataPublisherResult {
+                        self.sender.publish([<$ActorType Msg>]::$Unit)
+                    }
+
+                    async fn ask<A>(&self, f: impl FnOnce(tokio::sync::oneshot::Sender<A>) -> $Unit) -> Result<A, $crate::data::data_publisher::DataPublisherErrors> {
+                        let (tx, rx) = tokio::sync::oneshot::channel::<A>();
+                        let _ = f(tx);
+                        self.sender.publish([<$ActorType Msg>]::$Unit)?;
                         rx.await.map_err($crate::data::data_publisher::DataPublisherErrors::from)
                     }
                 }
