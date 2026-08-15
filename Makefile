@@ -7,8 +7,10 @@ run_all_examples:
 run_tests:
 	cargo test
 
-publish: run_tests run_all_examples
+publish-uactor: run_tests run_all_examples
 	cargo publish -p uactor --allow-dirty
 
 publish-derive: run_tests run_all_examples
 	cargo publish -p uactor-derive --allow-dirty
+
+publish: publish-derive publish-uactor

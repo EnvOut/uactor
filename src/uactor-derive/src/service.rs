@@ -211,11 +211,6 @@ fn generate_handler(
     is_async: bool,
 ) -> TokenStream2 {
     let method_ident = &method.sig.ident;
-    let remaining_attrs: Vec<_> = method
-        .attrs
-        .iter()
-        .filter(|attr| !is_helper_attr(attr))
-        .collect();
 
     let field_idents: Vec<_> = params
         .iter()
@@ -303,7 +298,6 @@ fn generate_handler(
 
     quote! {
         impl uactor::actor::abstract_actor::Handler<#message_ident> for #actor_type {
-            #(#remaining_attrs)*
             async fn handle(
                 &mut self,
                 #inject_param,

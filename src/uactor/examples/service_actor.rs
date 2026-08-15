@@ -46,6 +46,7 @@ mod my_actor {
 
     #[uactor::service]
     impl MyActor {
+        #[tracing::instrument(skip(self))]
         async fn do_something(&mut self, site_id: i32, user_id: i32) -> Result<(), AppError> {
             info!("do_something site_id={site_id} user_id={user_id}");
             self.last_site_id = Some(site_id);

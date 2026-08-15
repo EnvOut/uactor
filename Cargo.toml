@@ -19,5 +19,5 @@ tracing = "0.1"
 # json
 
 derive_more = { version = "2", features = ["full"] }
-uactor-derive = { version = "0.18.0" }
+uactor-derive = { version = "0.18.1" }
 #uactor-derive = { path = "src/uactor-derive" }
