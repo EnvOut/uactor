@@ -150,7 +150,14 @@ fn generate_for_method(actor_type: &Type, method: &ImplItemFn) -> Result<Generat
         kind,
         is_async,
     );
-    let ref_method = generate_ref_method(method, &message_ident, &field_params, kind, &ret_ty);
+    let ref_method = generate_ref_method(
+        actor_type,
+        method,
+        &message_ident,
+        &field_params,
+        kind,
+        &ret_ty,
+    );
 
     Ok(GeneratedMethod {
         message_ident,
@@ -313,6 +320,7 @@ fn generate_handler(
 }
 
 fn generate_ref_method(
+    actor_type: &Type,
     method: &ImplItemFn,
     message_ident: &Ident,
     fields: &[&Param],
@@ -362,6 +370,7 @@ fn generate_ref_method(
         }
         MethodKind::Ask => {
             let ask_ident = format_ident!("ask_{}", method_ident);
+            let expect_ident = format_ident!("expect_{}", method_ident);
             quote! {
                 #(#docs)*
                 pub async fn #ask_ident(
@@ -376,6 +385,21 @@ fn generate_ref_method(
                         |reply| #message_ident { #(#construct_fields,)* reply },
                     )
                     .await
+                }
+
+                #(#docs)*
+                #[doc = "Panics if the actor is unavailable; handler errors are returned unchanged."]
+                pub async fn #expect_ident(
+                    &self,
+                    #(#args),*
+                ) -> #ret_ty {
+                    self.#ask_ident(#(#construct_fields),*)
+                        .await
+                        .expect(concat!(
+                            stringify!(#actor_type),
+                            " is expected to be alive for message ",
+                            stringify!(#message_ident),
+                        ))
                 }
             }
         }

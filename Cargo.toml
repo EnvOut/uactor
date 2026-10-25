@@ -5,6 +5,10 @@ members = [
     "src/uactor-derive",
 ]
 
+[workspace.package]
+version = "0.18.4"
+edition = "2024"
+
 [workspace.dependencies]
 tokio = { version = "1.35.0", features = ["net", "sync", "time", "rt", "macros", "rt-multi-thread"] }
 futures = "0.3"
@@ -17,7 +21,5 @@ anyhow = { version = "1.0", features = ["backtrace"] }
 tracing = "0.1"
 
 # json
-
 derive_more = { version = "2", features = ["full"] }
-uactor-derive = { version = "0.18.1" }
-#uactor-derive = { path = "src/uactor-derive" }
+uactor-derive = { version = "0.18.4", path = "src/uactor-derive" }

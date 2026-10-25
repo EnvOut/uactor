@@ -135,6 +135,29 @@ async fn ask_plain_value() {
 }
 
 #[tokio::test]
+async fn expect_unwraps_only_the_actor_transport_result() {
+    let actor_ref = spawn_calculator().await;
+
+    let failed = actor_ref.expect_sum(-1, 2).await;
+    assert_eq!(failed, Err(AppError("negative")));
+
+    let scaled = actor_ref.expect_scaled_sum(3, 4).await;
+    assert_eq!(scaled, 14);
+}
+
+#[tokio::test]
+#[should_panic(expected = "Calculator is expected to be alive for message ScaledSum")]
+async fn expect_panics_when_actor_is_unavailable() {
+    let mut system = System::global();
+    let (actor_ref, stream) = system
+        .register_ref::<Calculator, _, CalculatorMpscRef>("unavailable_calculator")
+        .await;
+    drop(stream);
+
+    let _ = actor_ref.expect_scaled_sum(1, 2).await;
+}
+
+#[tokio::test]
 async fn send_error_does_not_stop_actor() {
     let actor_ref = spawn_calculator().await;
 

@@ -79,6 +79,8 @@ pub fn handler(_attr: TokenStream, _item: TokenStream) -> TokenStream {
 /// - any other return type (including `Result<T, E>`) → `ask_<method>(...).await`
 ///   which yields the method's return value, **including `Err`**, without stopping
 ///   the actor.
+/// - each `ask_<method>` also has an `expect_<method>` variant that returns the
+///   method value directly and panics if the actor is unavailable.
 ///
 /// `ctx` / `context` and `state` parameters map to the actor context and state.
 /// Inject fields are taken from `Inject` when marked with `#[inject]`.
@@ -107,6 +109,7 @@ pub fn handler(_attr: TokenStream, _item: TokenStream) -> TokenStream {
 ///
 /// // my_actor_ref.send_do_something(site_id, user_id)?;
 /// // let sum = my_actor_ref.ask_sum(1, 2).await?;
+/// // let sum = my_actor_ref.expect_sum(1, 2).await;
 /// ```
 ///
 /// Do not call `generate_actor_ref!` yourself for the same actor: this macro

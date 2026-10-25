@@ -93,7 +93,9 @@ Examples can be found [here](src/uactor/examples).
 
 - **`#[uactor::service]`** -- describe actor handlers as service methods. The macro
   generates message types, `Handler` impls, the actor ref, and typed
-  `send_<method>(...)` / `ask_<method>(...).await` calls.
+  `send_<method>(...)` / `ask_<method>(...).await` calls. Every generated
+  `ask_<method>` also has an `expect_<method>` variant that panics when the actor
+  is unavailable and otherwise returns the handler value directly.
 
   [Example: Service actor](src/uactor/examples/service_actor.rs)
 
